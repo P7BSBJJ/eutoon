@@ -541,7 +541,7 @@ export async function vote(gameId: string, voter: User, votedId: string) {
     where: and(eq(t.entries.gameId, gameId), eq(t.entries.userId, voter.id), eq(t.entries.status, "confirmado")),
   });
   if (!played) throw new AppError("Só quem jogou pode votar.");
-  if (votedId === voter.id) throw new AppError("Não vale votar em si mesmo 😅");
+  if (votedId === voter.id) throw new AppError("Não vale votar em si mesmo.");
   await db
     .insert(t.votes)
     .values({ gameId, voterId: voter.id, votedId })

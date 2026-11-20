@@ -5,6 +5,7 @@ import { currentUser } from "@/lib/auth";
 import * as P from "@/lib/pelada";
 import { getDb, schema } from "@/db";
 import { fmtDate } from "@/lib/url";
+import { ArrowLeft, BallIcon, BootIcon } from "@/components/icons";
 
 export default async function Jogador({ params }: PageProps<"/g/[slug]/jogador/[userId]">) {
   const { slug, userId } = await params;
@@ -21,10 +22,10 @@ export default async function Jogador({ params }: PageProps<"/g/[slug]/jogador/[
 
   return (
     <div className="space-y-4">
-      <Link href={`/g/${slug}`} className="text-sm text-white/50">← {group.name}</Link>
+      <Link href={`/g/${slug}`} className="back"><ArrowLeft size={16} /> {group.name}</Link>
       <div className="card text-center">
-        <div className="text-5xl">⚽</div>
-        <h1 className="mt-2 text-2xl font-black italic">{player.name}</h1>
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-lima/10 font-display text-3xl text-lima">{player.name.split(" ").map((x) => x[0]).slice(0, 2).join("")}</span>
+        <h1 className="mt-3 text-3xl">{player.name}</h1>
         <div className="mt-4 grid grid-cols-4 gap-2">
           {[
             [goals, "gols"],
@@ -33,7 +34,7 @@ export default async function Jogador({ params }: PageProps<"/g/[slug]/jogador/[
             [`${rel.get(userId) ?? 100}%`, "presença"],
           ].map(([v, l]) => (
             <div key={l as string} className="rounded-xl bg-noite p-2">
-              <div className="text-2xl font-black text-lima">{v}</div>
+              <div className="font-display text-3xl text-lima">{v}</div>
               <div className="text-xs text-white/50">{l}</div>
             </div>
           ))}
@@ -46,7 +47,7 @@ export default async function Jogador({ params }: PageProps<"/g/[slug]/jogador/[
           {hist.map((h, i) => (
             <li key={i} className="flex justify-between py-2">
               <span>{fmtDate(h.date, { day: "2-digit", month: "2-digit", year: "2-digit" })} · {h.title}</span>
-              <span>⚽ {h.goals} · 🅰️ {h.assists}</span>
+              <span className="flex items-center gap-3"><span className="inline-flex items-center gap-1"><BallIcon size={15} />{h.goals}</span><span className="inline-flex items-center gap-1"><BootIcon size={15} />{h.assists}</span></span>
             </li>
           ))}
         </ul>

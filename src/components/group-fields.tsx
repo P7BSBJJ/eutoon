@@ -1,3 +1,5 @@
+import { Banknote } from "@/components/icons";
+
 type G = {
   name?: string;
   location?: string;
@@ -45,7 +47,7 @@ export function GroupFields({ g = {} }: { g?: G }) {
         </div>
       </div>
       <fieldset className="space-y-3 rounded-xl border border-white/10 p-3">
-        <legend className="px-1 text-sm font-bold">💸 Onde o dinheiro cai</legend>
+        <legend className="flex items-center gap-1.5 px-1 text-sm font-bold"><Banknote size={16} className="text-lima" /> Onde o dinheiro cai</legend>
         <p className="muted">O Pix vai direto pra sua chave. O app gera o “copia e cola” já com o valor certo.</p>
         <div>
           <label className="label">Chave Pix</label>

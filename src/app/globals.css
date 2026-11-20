@@ -8,7 +8,8 @@
   --color-noite-3: #22305e;
   --color-amarelo: #ffc93c;
   --color-creme: #fff4e6;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, sans-serif;
 }
 
 body {
@@ -16,14 +17,28 @@ body {
   color: #ffffff;
 }
 
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+  }
+}
+
 @layer components {
+  .font-display { font-family: var(--font-display); font-style: italic; font-weight: 800; letter-spacing: 0.01em; }
   .card { @apply rounded-2xl bg-noite-2 p-4 ring-1 ring-white/5; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-lima px-4 py-2.5 font-extrabold text-noite transition hover:bg-lima-escuro disabled:opacity-50; }
-  .btn-sec { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-noite-3 px-3 py-2 font-semibold text-creme transition hover:bg-white/15; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-lima px-4 py-2.5 font-bold text-noite transition hover:bg-lima-escuro disabled:opacity-60; }
+  .btn-sec { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-noite-3 px-3 py-2 font-semibold text-white transition hover:bg-white/15 disabled:opacity-60; }
   .btn-sm { @apply px-2.5 py-1.5 text-sm; }
-  .input { @apply w-full rounded-xl border border-white/10 bg-noite px-3 py-2.5 text-creme placeholder:text-white/30 focus:border-lima focus:outline-none; }
+  .input { @apply w-full rounded-xl border border-white/10 bg-noite px-3 py-2.5 text-white placeholder:text-white/30 focus:border-lima focus:outline-none; }
   .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-white/50; }
-  .h2 { @apply mb-3 text-lg font-black italic; }
-  .tag { @apply rounded-full px-2 py-0.5 text-xs font-bold; }
+  .h2 { @apply mb-3 flex items-center gap-2 text-xl; }
+  .h2 svg { @apply text-lima; }
+  .tag { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold; }
   .muted { @apply text-sm text-white/55; }
+  .back { @apply inline-flex items-center gap-1 text-sm text-white/50 hover:text-white; }
 }

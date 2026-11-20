@@ -4,6 +4,7 @@ import { useState } from "react";
 import { matchPlayer, parseSumula } from "@/lib/domain/sumula";
 import { Submit } from "@/components/client";
 import { saveStatsAction } from "@/app/actions";
+import { BallIcon, BootIcon, Sparkles } from "@/components/icons";
 
 type P = { id: string; name: string; goals: number; assists: number };
 
@@ -35,13 +36,13 @@ export function SumulaForm({ slug, gameId, players }: { slug: string; gameId: st
           className="input min-h-24"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={"Yuri 2 gols 1 assist\nSilas ⚽⚽ 🅰️\nbreno 1g 2a"}
+          placeholder={"Yuri 2 gols 1 assist\nSilas 2g 1a\nbreno 1g 2a"}
         />
         <button type="button" className="btn-sec btn-sm mt-2" onClick={read}>
-          🤖 Preencher a tabela
+          <Sparkles size={16} /> Preencher a tabela
         </button>
         {unknown.length > 0 && (
-          <p className="mt-2 text-sm text-amarelo">Não reconheci: {unknown.join(", ")}. Preencha esses na mão 👇</p>
+          <p className="mt-2 text-sm text-amarelo">Não reconheci: {unknown.join(", ")}. Preencha esses na tabela abaixo.</p>
         )}
       </div>
       <form action={saveStatsAction} className="space-y-1">
@@ -49,8 +50,8 @@ export function SumulaForm({ slug, gameId, players }: { slug: string; gameId: st
         <input type="hidden" name="gameId" value={gameId} />
         <div className="grid grid-cols-[1fr_4rem_4rem] gap-2 text-xs font-bold text-white/50">
           <span>Jogador</span>
-          <span className="text-center">⚽ Gols</span>
-          <span className="text-center">🅰️ Assist.</span>
+          <span className="inline-flex items-center justify-center gap-1"><BallIcon size={14} /> Gols</span>
+          <span className="inline-flex items-center justify-center gap-1"><BootIcon size={14} /> Assist.</span>
         </div>
         {players.map((p) => (
           <div key={p.id} className="grid grid-cols-[1fr_4rem_4rem] items-center gap-2">

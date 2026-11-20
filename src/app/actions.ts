@@ -151,14 +151,14 @@ export async function createGameAction(f: FormData) {
     });
     id = game.id;
   });
-  redirect(`/g/${slug}/jogo/${id}?ok=${encodeURIComponent("Jogo criado! Copie a lista e mande no grupo 👇")}`);
+  redirect(`/g/${slug}/jogo/${id}?ok=${encodeURIComponent("Jogo criado! Copie a lista e mande no grupo.")}`);
 }
 
 const gamePath = (f: FormData) => `/g/${str(f, "slug")}/jogo/${str(f, "gameId")}`;
 
 export async function joinGameAction(f: FormData) {
   const u = await me();
-  await run(gamePath(f), () => P.joinGame(str(f, "gameId"), u, (str(f, "position") || undefined) as "linha" | "goleiro" | undefined), "Você tá on! ⚽");
+  await run(gamePath(f), () => P.joinGame(str(f, "gameId"), u, (str(f, "position") || undefined) as "linha" | "goleiro" | undefined), "Você tá on!");
 }
 
 export async function addGuestAction(f: FormData) {
@@ -188,7 +188,7 @@ export async function payEntryAction(f: FormData) {
   });
   const r = res as Awaited<ReturnType<typeof P.payEntry>> | null;
   if (r?.kind === "pix") redirect(`/pagar/${r.paymentId}`);
-  redirect(withParam(gamePath(f), "ok", r?.kind === "credito" ? "Pago com seu crédito ✅" : "Já está pago ✅"));
+  redirect(withParam(gamePath(f), "ok", r?.kind === "credito" ? "Pago com seu crédito." : "Já está pago."));
 }
 
 /** como run(), mas só redireciona em caso de erro */
@@ -204,17 +204,17 @@ async function runNoRedirect(back: string, fn: () => Promise<unknown>) {
 
 export async function informPaidAction(f: FormData) {
   const u = await me();
-  await run(`/pagar/${str(f, "paymentId")}`, () => P.informPaid(str(f, "paymentId"), u), "Avisamos o organizador 👍");
+  await run(`/pagar/${str(f, "paymentId")}`, () => P.informPaid(str(f, "paymentId"), u), "Avisamos o organizador.");
 }
 
 export async function confirmPaymentAction(f: FormData) {
   const u = await me();
-  await run(str(f, "back") || "/", () => P.confirmPayment(str(f, "paymentId"), u), "Pagamento confirmado ✅");
+  await run(str(f, "back") || "/", () => P.confirmPayment(str(f, "paymentId"), u), "Pagamento confirmado.");
 }
 
 export async function markPaidAction(f: FormData) {
   const u = await me();
-  await run(gamePath(f), () => P.markPaidManually(str(f, "entryId"), u), "Marcado como pago ✅");
+  await run(gamePath(f), () => P.markPaidManually(str(f, "entryId"), u), "Marcado como pago.");
 }
 
 export async function checkinAction(f: FormData) {
@@ -224,7 +224,7 @@ export async function checkinAction(f: FormData) {
 
 export async function drawAction(f: FormData) {
   const u = await me();
-  await run(gamePath(f) + "#times", () => P.drawAndSave(str(f, "gameId"), u, str(f, "mode") as "ordem" | "equilibrado" | "aleatorio"), "Times sorteados ⚽");
+  await run(gamePath(f) + "#times", () => P.drawAndSave(str(f, "gameId"), u, str(f, "mode") as "ordem" | "equilibrado" | "aleatorio"), "Times sorteados.");
 }
 
 export async function saveStatsAction(f: FormData) {
@@ -234,12 +234,12 @@ export async function saveStatsAction(f: FormData) {
     const m = k.match(/^g_(.+)$/);
     if (m) rows.push({ userId: m[1], goals: Number(v) || 0, assists: Number(f.get(`a_${m[1]}`)) || 0 });
   }
-  await run(gamePath(f), () => P.saveStats(str(f, "gameId"), u, rows), "Súmula salva! Rankings atualizados 📊");
+  await run(gamePath(f), () => P.saveStats(str(f, "gameId"), u, rows), "Súmula salva! Rankings atualizados.");
 }
 
 export async function voteAction(f: FormData) {
   const u = await me();
-  await run(gamePath(f), () => P.vote(str(f, "gameId"), u, str(f, "votedId")), "Voto registrado 🗳️");
+  await run(gamePath(f), () => P.vote(str(f, "gameId"), u, str(f, "votedId")), "Voto registrado.");
 }
 
 // ---------- vaquinha ----------
@@ -249,7 +249,7 @@ export async function createVaquinhaAction(f: FormData) {
   await run(`/g/${slug}`, async () => {
     const g = await P.getGroupBySlug(slug);
     await P.createVaquinha(g!.id, u, str(f, "title"), cents(str(f, "goal")));
-  }, "Vaquinha criada 💰");
+  }, "Vaquinha criada.");
 }
 
 export async function contributeAction(f: FormData) {

@@ -50,28 +50,28 @@ export function formatList(
   const gk = confirmed.filter((e) => e.position === "goleiro");
 
   const out: string[] = [];
-  out.push(`⚽ *${game.title}*`);
-  out.push(`📅 ${day} às ${hour}`);
-  out.push(`📍 ${game.location}  💰 ${brl(game.priceCents)}`);
+  out.push(`*${game.title.toUpperCase()}*`);
+  out.push(`${day[0].toUpperCase()}${day.slice(1)} às ${hour}`);
+  out.push(`${game.location} · ${brl(game.priceCents)}`);
   out.push("");
   out.push("Mensalista Ⓜ️ | Pago ✅ | A pagar ❌");
-  out.push(`👉 Confirme e pague aqui: ${game.link}`);
-  out.push(`⏳ Desistência sem custo até ${game.deadlineHours}h antes`);
+  out.push(`Confirme e pague aqui: ${game.link}`);
+  out.push(`Desistência sem custo até ${game.deadlineHours}h antes`);
   out.push("");
   for (let i = 0; i < game.slots; i++) {
     const e = line[i];
     out.push(e ? `${i + 1} - ${label(e)}${status(e)}` : `${i + 1} - `);
   }
   out.push("");
-  out.push("🧤 Goleiros");
+  out.push("*GOLEIROS*");
   if (gk.length === 0) out.push("G1 - ");
   gk.forEach((e, i) => out.push(`G${i + 1} - ${label(e)}${status(e)}`));
   if (waitlist.length) {
     out.push("");
-    out.push("⏳ Lista de espera");
+    out.push("*LISTA DE ESPERA*");
     waitlist.forEach((e, i) => out.push(`${i + 1} - ${label(e)}`));
   }
   out.push("");
-  out.push("_Eu Tô On! ⚽_");
+  out.push("_Eu Tô On!_");
   return out.join("\n");
 }

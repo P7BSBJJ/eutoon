@@ -5,6 +5,7 @@ import * as P from "@/lib/pelada";
 import { baseUrl, brl, fmtDate, nowMs } from "@/lib/url";
 import { Flash } from "@/components/flash";
 import { CopyButton, Submit } from "@/components/client";
+import { BallIcon, BootIcon, Banknote, CalendarDays, ChevronRight, Crown, History, Megaphone, PiggyBank, Plus, Settings, Target, Trophy, Vote } from "@/components/icons";
 import { confirmPaymentAction, contributeAction, createGameAction, createVaquinhaAction, joinGroupAction } from "../../actions";
 
 const PERIODS: Record<string, [number, string]> = {
@@ -26,8 +27,8 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
   if (!me) {
     return (
       <div className="card mt-6 space-y-4 text-center">
-        <div className="text-4xl">⚽</div>
-        <h1 className="text-2xl font-black italic">{group.name}</h1>
+        <BallIcon size={44} className="mx-auto text-lima" />
+        <h1 className="text-3xl">{group.name}</h1>
         <p className="muted">{group.location}</p>
         <form action={joinGroupAction}>
           <input type="hidden" name="slug" value={slug} />
@@ -56,16 +57,16 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
     <div className="space-y-5">
       <Flash sp={sp} />
       <div>
-        <h1 className="text-2xl font-black italic">{group.name}</h1>
+        <h1 className="text-3xl">{group.name}</h1>
         <p className="muted">
           {group.location} · {brl(group.priceCents)}
-          {credit > 0 && <span className="ml-2 tag bg-emerald-500/20 text-emerald-200">seu crédito: {brl(credit)}</span>}
+          {credit > 0 && <span className="ml-2 tag bg-lima/15 text-lima">seu crédito: {brl(credit)}</span>}
         </p>
       </div>
 
       {admin && pending.length > 0 && (
         <section className="card ring-amarelo/40">
-          <h2 className="h2">💸 Confirme os Pix recebidos</h2>
+          <h2 className="h2"><Banknote size={20} /> Confirme os Pix recebidos</h2>
           <p className="muted mb-3">Eles disseram que pagaram. Confira no seu banco e confirme.</p>
           {pending.map((p) => (
             <form key={p.id} action={confirmPaymentAction} className="flex items-center justify-between border-t border-white/5 py-2">
@@ -81,7 +82,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
       )}
 
       <section>
-        <h2 className="h2">📅 Próximos jogos</h2>
+        <h2 className="h2"><CalendarDays size={20} /> Próximos jogos</h2>
         {upcoming.length === 0 && <p className="muted">Nenhum jogo marcado.</p>}
         <div className="grid gap-2">
           {upcoming.map((g) => (
@@ -90,13 +91,13 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
                 <div className="font-bold">{g.title}</div>
                 <div className="muted">{fmtDate(g.startsAt)} · {g.location}</div>
               </div>
-              <span className="text-lima">→</span>
+              <ChevronRight size={20} className="text-lima" />
             </Link>
           ))}
         </div>
         {admin && (
           <details className="card mt-3">
-            <summary className="cursor-pointer font-bold">+ Marcar jogo</summary>
+            <summary className="flex cursor-pointer items-center gap-2 font-bold"><Plus size={18} className="text-lima" /> Marcar jogo</summary>
             <form action={createGameAction} className="mt-3 space-y-3">
               <input type="hidden" name="slug" value={slug} />
               <div>
@@ -138,7 +139,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
 
       <section className="card">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="h2 mb-0">🏆 Ranking {PERIODS[period][1]}</h2>
+          <h2 className="h2 mb-0"><Trophy size={20} /> Ranking {PERIODS[period][1]}</h2>
         </div>
         <div className="mb-3 flex gap-1">
           {Object.keys(PERIODS).map((k) => (
@@ -153,13 +154,15 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
           <>
             <div className="mb-3 grid grid-cols-3 gap-2 text-center text-sm">
               {[
-                ["👑 Craque", top("points")],
-                ["🥅 Artilheiro", top("goals")],
-                ["🎯 Garçom", top("assists")],
-              ].map(([t, r]) => {
+                [Crown, "Craque", top("points")],
+                [BallIcon, "Artilheiro", top("goals")],
+                [Target, "Garçom", top("assists")],
+              ].map(([Icon, t, r]) => {
                 const row = r as (typeof ranking)[number];
+                const I = Icon as typeof Crown;
                 return (
                   <div key={t as string} className="rounded-xl bg-noite p-2">
+                    <I size={18} className="mx-auto mb-0.5 text-lima" />
                     <div className="text-xs text-white/50">{t as string}</div>
                     <div className="font-bold">{row.name.split(" ")[0]}</div>
                   </div>
@@ -172,7 +175,11 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
                   <Link href={`/g/${slug}/jogador/${r.userId}`} className="flex items-center gap-2 py-2">
                     <span className="w-6 text-right text-white/40">{i + 1}º</span>
                     <span className="flex-1">{r.name}</span>
-                    <span className="text-sm text-white/60">⚽{r.goals} 🅰️{r.assists}{r.votes ? ` 🗳️${r.votes}` : ""}</span>
+                    <span className="flex items-center gap-2 text-sm text-white/60">
+                      <span className="inline-flex items-center gap-0.5"><BallIcon size={14} />{r.goals}</span>
+                      <span className="inline-flex items-center gap-0.5"><BootIcon size={14} />{r.assists}</span>
+                      {r.votes > 0 && <span className="inline-flex items-center gap-0.5"><Vote size={14} />{r.votes}</span>}
+                    </span>
                     <b className="w-12 text-right">{r.points}</b>
                   </Link>
                 </li>
@@ -184,7 +191,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
       </section>
 
       <section className="card">
-        <h2 className="h2">💰 Vaquinhas</h2>
+        <h2 className="h2"><PiggyBank size={20} /> Vaquinhas</h2>
         {vaqs.length === 0 && <p className="muted">Nenhuma vaquinha aberta.</p>}
         {vaqs.map((v) => {
           const pct = Math.min(100, Math.round((v.raisedCents / v.goalCents) * 100));
@@ -220,19 +227,19 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
       </section>
 
       <section className="card space-y-2">
-        <h2 className="h2">📣 Convide a galera</h2>
+        <h2 className="h2"><Megaphone size={20} /> Convide a galera</h2>
         <p className="muted">Mande este link no grupo do WhatsApp. Quem entrar já pode confirmar nos jogos.</p>
         <CopyButton text={`${url}/g/${slug}`} label="Copiar link do grupo" className="btn-sec w-full" />
         {admin && (
           <Link href={`/g/${slug}/config`} className="btn-sec w-full">
-            ⚙️ Configurações e jogadores
+            <Settings size={18} /> Configurações e jogadores
           </Link>
         )}
       </section>
 
       {past.length > 0 && (
         <section>
-          <h2 className="h2">🕓 Jogos anteriores</h2>
+          <h2 className="h2"><History size={20} /> Jogos anteriores</h2>
           <div className="grid gap-2">
             {past.slice(0, 10).map((g) => (
               <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className="card flex justify-between py-3 text-sm">

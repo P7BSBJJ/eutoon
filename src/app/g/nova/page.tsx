@@ -9,7 +9,7 @@ export default async function NovaPelada({ searchParams }: PageProps<"/g/nova">)
   const sp = await searchParams;
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-black italic">Criar pelada</h1>
+      <h1 className="mb-4 text-3xl">Criar pelada</h1>
       <Flash sp={sp} />
       <form action={createGroupAction} className="card space-y-4">
         <GroupFields />

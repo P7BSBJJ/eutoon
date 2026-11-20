@@ -7,7 +7,28 @@ import { isWithinDeadline } from "@/lib/domain/rules";
 import { teamStrength } from "@/lib/domain/teams";
 import { baseUrl, brl, fmtDate, nowMs } from "@/lib/url";
 import { Flash } from "@/components/flash";
-import { CopyButton, RowMenu, ShareWhatsApp, Submit } from "@/components/client";
+import { CopyButton, OnSwitch, RowMenu, ShareWhatsApp, Submit } from "@/components/client";
+import {
+  ArrowLeft,
+  BallIcon,
+  BootIcon,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  GloveIcon,
+  Hourglass,
+  MapPin,
+  MessageCircle,
+  PenLine,
+  Shuffle,
+  TriangleAlert,
+  UserPlus,
+  Vote,
+  Wallet,
+  WhistleIcon,
+  X,
+} from "@/components/icons";
 import {
   addGuestAction,
   checkinAction,
@@ -64,163 +85,183 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
     </>
   );
 
+  function Status({ e }: { e: P.EntryView }) {
+    if (e.kind === "mensalista") return <span className="tag bg-blue-400/20 text-blue-200" title="Mensalista">M</span>;
+    if (e.paid) return <span className="tag bg-lima/15 text-lima"><Check size={13} strokeWidth={3} /> pago</span>;
+    if (e.pendingPaymentId) {
+      if (admin)
+        return (
+          <form action={confirmPaymentAction}>
+            <input type="hidden" name="paymentId" value={e.pendingPaymentId} />
+            <input type="hidden" name="back" value={`/g/${slug}/jogo/${id}`} />
+            <Submit className="btn btn-sm !bg-amarelo">Confirmar Pix</Submit>
+          </form>
+        );
+      return <span className="tag bg-amarelo/20 text-amarelo"><Hourglass size={13} /> conferindo</span>;
+    }
+    return <span className="tag bg-red-500/20 text-red-200"><X size={13} strokeWidth={3} /> a pagar</span>;
+  }
+
   function Row({ e, n }: { e: P.EntryView; n: string | number }) {
     const canAct = admin || e.userId === user!.id || e.invitedBy === user!.id;
+    const r = e.userId ? rel.get(e.userId) : undefined;
     return (
-      <li className="flex flex-wrap items-center gap-2 border-t border-white/5 py-2">
-        <span className="w-6 text-right text-white/40">{n}</span>
-        <span className="flex-1">
+      <li className="flex items-center gap-2 border-t border-white/5 py-2">
+        <span className="w-7 text-right font-display text-lg text-white/35">{n}</span>
+        <span className="min-w-0 flex-1 truncate">
           {e.name}
           {e.kind === "convidado" && <span className="text-white/50"> (convidado)</span>}
-          {e.checkinAt && <span title="chegou"> 📍</span>}
-          {e.userId && rel.get(e.userId) !== undefined && rel.get(e.userId)! < 100 && (
-            <span className="ml-1 text-xs text-white/40">{rel.get(e.userId)}%</span>
-          )}
+          {e.checkinAt && <MapPin size={14} className="ml-1 inline text-lima" aria-label="chegou" />}
+          {r !== undefined && r < 100 && <span className="ml-1.5 text-xs text-white/40">{r}%</span>}
         </span>
-        {e.position === "goleiro" && <span className="tag bg-purple-500/30">GOL</span>}
-        {e.kind === "mensalista" ? (
-          <span className="tag bg-blue-500/30">Ⓜ️</span>
-        ) : e.paid ? (
-          <span className="tag bg-emerald-500/25 text-emerald-200">✅ pago</span>
-        ) : e.pendingPaymentId ? (
-          admin ? (
-            <form action={confirmPaymentAction}>
-              <input type="hidden" name="paymentId" value={e.pendingPaymentId} />
-              <input type="hidden" name="back" value={`/g/${slug}/jogo/${id}`} />
-              <Submit className="btn btn-sm !bg-amarelo !text-noite">Confirmar Pix</Submit>
-            </form>
-          ) : (
-            <span className="tag bg-amarelo/25 text-amarelo">⏳ conferindo</span>
-          )
-        ) : (
-          <span className="tag bg-red-500/25 text-red-200">❌</span>
+        {e.position === "goleiro" && (
+          <span className="tag bg-purple-400/20 text-purple-200"><GloveIcon size={13} /> gol</span>
         )}
+        <Status e={e} />
         {canAct && (
           <RowMenu>
-              {!e.paid && e.kind !== "mensalista" && (
-                <form action={payEntryAction}>
-                  {hidden}
-                  <input type="hidden" name="entryId" value={e.id} />
-                  <Submit className="btn btn-sm w-full">Pagar Pix</Submit>
-                </form>
-              )}
-              {admin && !e.paid && e.kind !== "mensalista" && (
-                <form action={markPaidAction}>
-                  {hidden}
-                  <input type="hidden" name="entryId" value={e.id} />
-                  <Submit className="btn-sec btn-sm w-full">Marcar pago</Submit>
-                </form>
-              )}
-              {admin && (
-                <form action={checkinAction}>
-                  {hidden}
-                  <input type="hidden" name="entryId" value={e.id} />
-                  <Submit className="btn-sec btn-sm w-full">{e.checkinAt ? "Desfazer chegada" : "📍 Chegou"}</Submit>
-                </form>
-              )}
-              <form action={leaveGameAction}>
+            {!e.paid && e.kind !== "mensalista" && (
+              <form action={payEntryAction}>
                 {hidden}
                 <input type="hidden" name="entryId" value={e.id} />
-                <Submit className="btn-sec btn-sm w-full !text-red-300" confirm={leaveMsg}>
-                  Tirar da lista
-                </Submit>
+                <Submit className="btn btn-sm w-full">Pagar Pix</Submit>
               </form>
+            )}
+            {admin && !e.paid && e.kind !== "mensalista" && (
+              <form action={markPaidAction}>
+                {hidden}
+                <input type="hidden" name="entryId" value={e.id} />
+                <Submit className="btn-sec btn-sm w-full">Marcar pago</Submit>
+              </form>
+            )}
+            {admin && (
+              <form action={checkinAction}>
+                {hidden}
+                <input type="hidden" name="entryId" value={e.id} />
+                <Submit className="btn-sec btn-sm w-full">{e.checkinAt ? "Desfazer chegada" : "Chegou"}</Submit>
+              </form>
+            )}
+            <form action={leaveGameAction}>
+              {hidden}
+              <input type="hidden" name="entryId" value={e.id} />
+              <Submit className="btn-sec btn-sm w-full !text-red-300" confirm={leaveMsg}>
+                Tirar da lista
+              </Submit>
+            </form>
           </RowMenu>
         )}
       </li>
     );
   }
 
+  const defaultPos = me?.position ?? "linha";
+
   return (
     <div className="space-y-5">
       <Flash sp={sp} />
       <div>
-        <Link href={`/g/${slug}`} className="text-sm text-white/50">← {group.name}</Link>
-        <h1 className="text-2xl font-black italic">{game.title}</h1>
-        <p className="text-white/80">
-          📅 {fmtDate(game.startsAt, { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-          <br />📍 {game.location} · 💰 {brl(game.priceCents)}
-        </p>
+        <Link href={`/g/${slug}`} className="back"><ArrowLeft size={16} /> {group.name}</Link>
+        <h1 className="mt-1 text-4xl">{game.title}</h1>
+        <div className="mt-2 space-y-1 text-white/80">
+          <p className="flex items-center gap-2">
+            <CalendarDays size={17} className="text-lima" />
+            {fmtDate(game.startsAt, { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          </p>
+          <p className="flex items-center gap-2"><MapPin size={17} className="text-lima" /> {game.location}</p>
+          <p className="flex items-center gap-2"><Wallet size={17} className="text-lima" /> {brl(game.priceCents)}</p>
+        </div>
       </div>
 
       {!finished && (
-        <div className={`rounded-xl px-4 py-3 text-sm ${inDeadline ? "bg-emerald-500/10 text-emerald-200" : "bg-amarelo/10 text-amarelo"}`}>
-          {inDeadline
-            ? `✅ Desistência sem custo até ${game.deadlineHours}h antes do jogo.`
-            : "⚠️ Prazo de desistência encerrado: quem sair só recebe crédito se alguém da espera assumir a vaga."}
+        <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${inDeadline ? "bg-lima/10 text-lima" : "bg-amarelo/10 text-amarelo"}`}>
+          {inDeadline ? <CheckCircle2 size={18} className="shrink-0" /> : <TriangleAlert size={18} className="shrink-0" />}
+          <span>
+            {inDeadline
+              ? `Desistência sem custo até ${game.deadlineHours}h antes do jogo.`
+              : "Prazo de desistência encerrado: quem sair só recebe crédito se alguém da espera assumir a vaga."}
+          </span>
         </div>
       )}
 
-      {/* minha situação */}
+      {/* minha situação: o interruptor da marca */}
       {!finished && (
-        <section className="card">
+        <section className="card space-y-4">
           {!mine ? (
-            <form action={joinGameAction} className="space-y-3">
+            <form action={joinGameAction} className="space-y-4">
               {hidden}
-              <div className="flex gap-2">
-                <select name="position" className="input" defaultValue={me?.position ?? "linha"}>
-                  <option value="linha">Linha</option>
-                  <option value="goleiro">Goleiro</option>
-                </select>
-                <Submit className="btn shrink-0 px-6 text-lg">Tô on! ⚽</Submit>
-              </div>
-              <p className="muted">
-                {line.length >= game.slots ? "Lista cheia: você entra na lista de espera." : `${game.slots - line.length} vagas de linha livres.`}
-              </p>
+              <OnSwitch
+                on={false}
+                label="Tô on!"
+                sub={line.length >= game.slots ? "Lista cheia: você entra na lista de espera." : `${game.slots - line.length} vagas de linha livres`}
+              />
+              <fieldset className="flex gap-2">
+                <legend className="sr-only">Posição</legend>
+                {(["linha", "goleiro"] as const).map((pos) => (
+                  <label key={pos} className="flex-1 cursor-pointer">
+                    <input type="radio" name="position" value={pos} defaultChecked={pos === defaultPos} className="peer sr-only" />
+                    <span className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-2 text-sm font-semibold text-white/60 peer-checked:border-lima peer-checked:text-lima">
+                      {pos === "linha" ? <BallIcon size={16} /> : <GloveIcon size={16} />}
+                      {pos === "linha" ? "Linha" : "Goleiro"}
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
             </form>
-          ) : mine.status === "espera" ? (
-            <div className="flex items-center justify-between">
-              <span>⏳ Você é o <b>{wait.findIndex((w) => w.id === mine.id) + 1}º</b> da lista de espera.</span>
-              <form action={leaveGameAction}>
-                {hidden}
-                <input type="hidden" name="entryId" value={mine.id} />
-                <Submit className="btn-sec btn-sm">Sair</Submit>
-              </form>
-            </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-lg font-bold">
-                {mine.kind === "mensalista" ? "Você tá on! Ⓜ️" : mine.paid ? "Você tá on! ✅" : mine.pendingPaymentId ? "Tá on! Pix em conferência ⏳" : "Tá na lista, falta pagar ❌"}
-              </span>
-              <div className="flex gap-2">
-                {!mine.paid && mine.kind !== "mensalista" && !mine.pendingPaymentId && (
-                  <form action={payEntryAction}>
-                    {hidden}
-                    <input type="hidden" name="entryId" value={mine.id} />
-                    <Submit className="btn">Pagar {brl(game.priceCents)}</Submit>
-                  </form>
-                )}
-                <form action={leaveGameAction}>
-                  {hidden}
-                  <input type="hidden" name="entryId" value={mine.id} />
-                  <Submit className="btn-sec" confirm={leaveMsg}>Sair</Submit>
-                </form>
-              </div>
-            </div>
+            <form action={leaveGameAction}>
+              {hidden}
+              <input type="hidden" name="entryId" value={mine.id} />
+              <OnSwitch
+                on
+                label={mine.status === "espera" ? "Na espera" : "Você tá on!"}
+                sub={
+                  mine.status === "espera"
+                    ? `Você é o ${wait.findIndex((w) => w.id === mine.id) + 1}º da lista de espera. Toque para sair.`
+                    : mine.kind === "mensalista"
+                      ? "Mensalista. Toque para sair desta partida."
+                      : mine.paid
+                        ? "Pago. Toque para sair."
+                        : mine.pendingPaymentId
+                          ? "Pix em conferência pelo organizador."
+                          : "Falta pagar para garantir a vaga."
+                }
+                confirm={mine.status === "espera" ? "Sair da lista de espera?" : leaveMsg}
+              />
+            </form>
           )}
-          {myGuests.length > 0 && <p className="muted mt-2">Seus convidados: {myGuests.map((g) => g.name).join(", ")}</p>}
+          {mine?.status === "confirmado" && !mine.paid && mine.kind !== "mensalista" && !mine.pendingPaymentId && (
+            <form action={payEntryAction}>
+              {hidden}
+              <input type="hidden" name="entryId" value={mine.id} />
+              <Submit className="btn w-full py-3"><Wallet size={18} /> Pagar {brl(game.priceCents)} no Pix</Submit>
+            </form>
+          )}
+          {myGuests.length > 0 && <p className="muted">Seus convidados: {myGuests.map((g) => g.name).join(", ")}</p>}
         </section>
       )}
 
       {/* lista */}
       <section className="card">
         <h2 className="h2">
-          📋 Lista <span className="text-sm font-normal not-italic text-white/50">({line.length}/{game.slots} linha · {gks.length}/{game.gkSlots} gol)</span>
+          <ClipboardList size={20} /> Lista
+          <span className="font-sans text-sm font-normal not-italic normal-case text-white/50">
+            {line.length}/{game.slots} linha · {gks.length}/{game.gkSlots} gol
+          </span>
         </h2>
         <ol>
           {line.map((e, i) => <Row key={e.id} e={e} n={i + 1} />)}
           {gks.map((e, i) => <Row key={e.id} e={e} n={`G${i + 1}`} />)}
         </ol>
-        {confirmed.length === 0 && <p className="muted">Ninguém confirmou ainda. Seja o primeiro!</p>}
+        {confirmed.length === 0 && <p className="muted">Ninguém confirmou ainda. Seja o primeiro.</p>}
         {wait.length > 0 && (
           <>
-            <h3 className="mt-4 mb-1 font-bold">⏳ Lista de espera</h3>
+            <h3 className="mt-5 mb-1 flex items-center gap-2 text-lg"><Hourglass size={17} className="text-amarelo" /> Lista de espera</h3>
             <ol>{wait.map((e, i) => <Row key={e.id} e={e} n={i + 1} />)}</ol>
           </>
         )}
         {!finished && me && (
           <details className="mt-3">
-            <summary className="cursor-pointer text-sm font-semibold text-lima">+ Levar convidado</summary>
+            <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-lima"><UserPlus size={16} /> Levar convidado</summary>
             <form action={addGuestAction} className="mt-2 flex gap-2">
               {hidden}
               <input name="guestName" className="input" placeholder="Nome do convidado" required />
@@ -228,7 +269,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
                 <option value="linha">Linha</option>
                 <option value="goleiro">Goleiro</option>
               </select>
-              <Submit className="btn-sec shrink-0">Add</Submit>
+              <Submit className="btn-sec shrink-0">Adicionar</Submit>
             </form>
           </details>
         )}
@@ -236,7 +277,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
 
       {/* whatsapp */}
       <section className="card space-y-3">
-        <h2 className="h2">💬 Lista pro WhatsApp</h2>
+        <h2 className="h2"><MessageCircle size={20} /> Lista para o WhatsApp</h2>
         <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-noite p-3 text-xs">{listText}</pre>
         <div className="flex gap-2">
           <CopyButton text={listText} label="Copiar lista" className="btn flex-1" />
@@ -246,7 +287,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
 
       {/* times */}
       <section id="times" className="card space-y-3">
-        <h2 className="h2">⚽ Times</h2>
+        <h2 className="h2"><Shuffle size={20} /> Times</h2>
         {admin && (
           <form action={drawAction} className="flex gap-2">
             {hidden}
@@ -255,10 +296,10 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
               <option value="equilibrado">Equilibrado (pela nota)</option>
               <option value="aleatorio">Aleatório</option>
             </select>
-            <Submit className="btn shrink-0">Sortear</Submit>
+            <Submit className="btn shrink-0"><WhistleIcon size={18} /> Sortear</Submit>
           </form>
         )}
-        {admin && <p className="muted">Ordem de chegada usa quem marcou 📍 “Chegou” primeiro; sem check-in, usa a ordem da lista.</p>}
+        {admin && <p className="muted">Ordem de chegada usa quem foi marcado como “Chegou” primeiro; sem isso, usa a ordem da lista.</p>}
         {teams ? (
           <>
             <div className="grid grid-cols-2 gap-3">
@@ -267,13 +308,15 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
                 ["Time 2", teams.team2, teams.gk2],
               ].map(([name, t, gk]) => (
                 <div key={name as string} className="rounded-xl bg-noite p-3">
-                  <div className="mb-1 flex justify-between font-bold">
-                    <span>{name as string}</span>
+                  <div className="mb-1 flex items-baseline justify-between">
+                    <span className="font-display text-xl uppercase">{name as string}</span>
                     {teams.mode === "equilibrado" && <span className="text-xs text-white/40">força {teamStrength(t as never)}</span>}
                   </div>
                   <ul className="space-y-0.5 text-sm">
                     {(t as { id: string; name: string }[]).map((p) => <li key={p.id}>{p.name}</li>)}
-                    {gk && <li>🧤 {(gk as { name: string }).name}</li>}
+                    {gk && (
+                      <li className="flex items-center gap-1 text-purple-200"><GloveIcon size={14} /> {(gk as { name: string }).name}</li>
+                    )}
                   </ul>
                 </div>
               ))}
@@ -289,13 +332,16 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
 
       {/* estatísticas */}
       <section className="card space-y-3">
-        <h2 className="h2">📊 Gols e assistências</h2>
+        <h2 className="h2"><BallIcon size={20} /> Gols e assistências</h2>
         {stats.length > 0 ? (
           <ul className="space-y-1">
             {[...stats].sort((a, b) => b.goals * 2 + b.assists - (a.goals * 2 + a.assists)).map((s) => (
-              <li key={s.userId} className="flex justify-between">
+              <li key={s.userId} className="flex items-center justify-between">
                 <span>{s.name}</span>
-                <span>⚽ {s.goals} · 🅰️ {s.assists}</span>
+                <span className="flex items-center gap-3 text-white/80">
+                  <span className="inline-flex items-center gap-1"><BallIcon size={15} /> {s.goals}</span>
+                  <span className="inline-flex items-center gap-1"><BootIcon size={15} /> {s.assists}</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -304,7 +350,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
         )}
         {admin && (
           <details>
-            <summary className="cursor-pointer font-semibold text-lima">✍️ Registrar súmula</summary>
+            <summary className="flex cursor-pointer items-center gap-2 font-semibold text-lima"><PenLine size={16} /> Registrar súmula</summary>
             <div className="mt-3">
               <SumulaForm
                 slug={slug}
@@ -321,7 +367,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
         )}
         {mine?.status === "confirmado" && hoursToGame < 2 && (
           <div>
-            <h3 className="mb-2 font-bold">🗳️ Quem foi o craque?</h3>
+            <h3 className="mb-2 flex items-center gap-2 text-lg"><Vote size={17} className="text-lima" /> Quem foi o craque?</h3>
             <div className="flex flex-wrap gap-1">
               {confirmed
                 .filter((e) => e.userId && e.userId !== user.id)

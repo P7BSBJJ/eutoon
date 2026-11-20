@@ -6,6 +6,7 @@ import { Flash } from "@/components/flash";
 import { GroupFields } from "@/components/group-fields";
 import { Submit } from "@/components/client";
 import { updateGroupAction, updateMemberAction } from "@/app/actions";
+import { ArrowLeft, Settings, Users } from "@/components/icons";
 
 export default async function Config({ params, searchParams }: PageProps<"/g/[slug]/config">) {
   const { slug } = await params;
@@ -21,11 +22,11 @@ export default async function Config({ params, searchParams }: PageProps<"/g/[sl
   return (
     <div className="space-y-5">
       <Flash sp={sp} />
-      <Link href={`/g/${slug}`} className="text-sm text-white/50">← {group.name}</Link>
-      <h1 className="text-2xl font-black italic">Configurações</h1>
+      <Link href={`/g/${slug}`} className="back"><ArrowLeft size={16} /> {group.name}</Link>
+      <h1 className="text-3xl">Configurações</h1>
 
       <section className="card">
-        <h2 className="h2">👥 Jogadores ({members.length})</h2>
+        <h2 className="h2"><Users size={20} /> Jogadores ({members.length})</h2>
         <p className="muted mb-3">
           Mensalista entra confirmado automaticamente em todo jogo novo. A nota (1–10) é usada no sorteio equilibrado e só você vê.
         </p>
@@ -61,7 +62,7 @@ export default async function Config({ params, searchParams }: PageProps<"/g/[sl
       </section>
 
       <section className="card">
-        <h2 className="h2">⚙️ Pelada</h2>
+        <h2 className="h2"><Settings size={20} /> Pelada</h2>
         <form action={updateGroupAction} className="space-y-4">
           <input type="hidden" name="slug" value={slug} />
           <GroupFields g={group} />

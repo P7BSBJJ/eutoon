@@ -7,6 +7,7 @@ import { brl } from "@/lib/url";
 import { Flash } from "@/components/flash";
 import { CopyButton, Submit } from "@/components/client";
 import { informPaidAction } from "@/app/actions";
+import { ArrowLeft, Check, CheckCircle2, Hourglass } from "@/components/icons";
 
 export default async function Pagar({ params, searchParams }: PageProps<"/pagar/[id]">) {
   const { id } = await params;
@@ -22,29 +23,29 @@ export default async function Pagar({ params, searchParams }: PageProps<"/pagar/
   return (
     <div className="space-y-4">
       <Flash sp={sp} />
-      <Link href={backTo} className="text-sm text-white/50">← voltar</Link>
+      <Link href={backTo} className="back"><ArrowLeft size={16} /> voltar</Link>
       <div className="card space-y-4 text-center">
         <div className="muted">Pix para {group.pixName || group.name}</div>
-        <div className="text-4xl font-black">{brl(payment.amountCents)}</div>
+        <div className="font-display text-5xl">{brl(payment.amountCents)}</div>
 
         {payment.status === "pago" ? (
-          <div className="rounded-xl bg-emerald-500/15 p-4 text-lg font-bold text-emerald-200">Pagamento confirmado ✅</div>
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-lima/15 p-4 text-lg font-bold text-lima"><CheckCircle2 size={22} /> Pagamento confirmado</div>
         ) : (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qr} alt="QR Code Pix" className="mx-auto w-56 rounded-xl bg-white p-2" />
             <CopyButton text={payment.pixCode} label="Copiar Pix copia e cola" className="btn w-full py-3" />
-            <p className="muted">Abra o app do seu banco → Pix → “Pix copia e cola” e cole o código.</p>
+            <p className="muted">Abra o app do seu banco, entre em Pix, escolha “Pix copia e cola” e cole o código.</p>
             {auto ? (
-              <p className="text-sm text-emerald-200">A confirmação é automática. Pode voltar pra lista depois de pagar.</p>
+              <p className="text-sm text-lima">A confirmação é automática. Pode voltar pra lista depois de pagar.</p>
             ) : payment.status === "informado" ? (
-              <div className="rounded-xl bg-amarelo/15 p-3 text-sm text-amarelo">
-                ⏳ Você avisou que pagou. O organizador vai conferir e confirmar.
+              <div className="flex items-center gap-2 rounded-xl bg-amarelo/15 p-3 text-left text-sm text-amarelo">
+                <Hourglass size={18} className="shrink-0" /> Você avisou que pagou. O organizador vai conferir e confirmar.
               </div>
             ) : (
               <form action={informPaidAction}>
                 <input type="hidden" name="paymentId" value={payment.id} />
-                <Submit className="btn-sec w-full py-3">Já paguei ✅</Submit>
+                <Submit className="btn-sec w-full py-3"><Check size={18} /> Já paguei</Submit>
               </form>
             )}
           </>
