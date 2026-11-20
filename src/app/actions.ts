@@ -44,7 +44,13 @@ export async function loginAction(prev: LoginState, f: FormData): Promise<LoginS
   const next = str(f, "next") || "/";
   if (prev.step === "phone" || str(f, "restart")) {
     if (str(f, "restart")) return { step: "phone" };
-    const r = await requestOtp(str(f, "phone"));
+    let r: Awaited<ReturnType<typeof requestOtp>>;
+    try {
+      r = await requestOtp(str(f, "phone"));
+    } catch (e) {
+      console.error("login: falha ao pedir código", e);
+      return { step: "phone", error: "O login ainda não está configurado no servidor. Avise o administrador do app." };
+    }
     if (!r.ok) return { step: "phone", error: r.error };
     return { step: "code", phone: r.phone, isNew: r.isNew, devCode: r.devCode };
   }

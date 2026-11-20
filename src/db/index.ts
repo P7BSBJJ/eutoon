@@ -17,6 +17,9 @@ async function create() {
     await migrate(db, { migrationsFolder });
     return db;
   }
+  if (process.env.VERCEL || process.env.NODE_ENV === "production" && !process.env.PGLITE_DIR) {
+    throw new Error("Banco de dados não configurado: defina DATABASE_URL (Neon/Supabase).");
+  }
   const { PGlite } = await import("@electric-sql/pglite");
   const { drizzle } = await import("drizzle-orm/pglite");
   const { migrate } = await import("drizzle-orm/pglite/migrator");
@@ -31,7 +34,10 @@ export type DB = PostgresJsDatabase<typeof schema>;
 
 const g = globalThis as unknown as { __db?: Promise<DB> };
 export function getDb(): Promise<DB> {
-  if (!g.__db) g.__db = create() as Promise<DB>;
+  if (!g.__db) {
+    g.__db = create() as Promise<DB>;
+    g.__db.catch(() => (g.__db = undefined));
+  }
   return g.__db;
 }
 
