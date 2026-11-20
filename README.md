@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Eu Tô On! ⚽
 
-## Getting Started
+App web (abre pelo link no WhatsApp, sem instalar) para organizar pelada: lista, Pix, lista de espera,
+regra de desistência, sorteio de times, gols/assistências, rankings e vaquinhas.
 
-First, run the development server:
+## Rodar no computador
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra http://localhost:3000. Em desenvolvimento o código de login aparece na tela e o banco é um
+Postgres embutido salvo em `.data/` (apague a pasta para zerar).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Testes das regras (desistência, sorteio, lista do WhatsApp, Pix, súmula):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx vitest run
+```
 
-## Learn More
+## Como funciona
 
-To learn more about Next.js, take a look at the following resources:
+| Regra | Comportamento |
+|---|---|
+| Confirmar | "Tô on!" entra na lista; se lotou, vai pra lista de espera |
+| Mensalista | Entra confirmado automaticamente em todo jogo novo, já como pago (Ⓜ️) |
+| Pagar | Pix copia-e-cola gerado na chave do organizador, já com o valor. Jogador toca "Já paguei" e o organizador confirma com 1 toque. Com Asaas configurado, a confirmação é automática |
+| Crédito | Se o jogador tem crédito no grupo, o pagamento usa o crédito primeiro |
+| Sair no prazo | Valor pago vira crédito; 1º da espera sobe |
+| Sair fora do prazo com espera | Vaga repassada; quem saiu ganha crédito quando o substituto pagar |
+| Sair fora do prazo sem espera | Perde o valor e conta como furo no índice de presença |
+| Sorteio | Ordem de chegada (check-in "📍 Chegou"; ímpares × pares), equilibrado (nota 1–10) ou aleatório |
+| Súmula | Organizador cola o que foi anotado ("Yuri 2 gols 1 assist", "Silas ⚽⚽ 🅰️") e confere a tabela |
+| Ranking | gol = 2, assistência = 1, voto de craque = 3; semana / mês / ano / geral |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Publicar (produção)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Banco Postgres: crie um projeto no [Neon](https://neon.tech) ou [Supabase](https://supabase.com) e copie a connection string para `DATABASE_URL`. As tabelas são criadas sozinhas na primeira execução (`drizzle/`).
+2. Hospedagem: importe o repositório na [Vercel](https://vercel.com), configure as variáveis do `.env.example` e aponte o domínio `eutoon.com.br`.
+3. **Login por SMS/WhatsApp é obrigatório antes de abrir ao público** (ver Pendências). Para um piloto fechado com amigos, `ALLOW_SCREEN_OTP=1` permite usar o código na tela.
 
-## Deploy on Vercel
+## Pendências antes de abrir ao público
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [ ] Envio do código de login por WhatsApp (Cloud API) ou SMS (Twilio/Zenvia) — `src/lib/auth.ts`, função `deliverOtp`
+- [ ] Testar o Pix automático no sandbox do Asaas (código pronto em `src/lib/payments.ts`, não testado contra a API real) e cadastrar a carteira (walletId) de cada organizador
+- [ ] Avisos automáticos (lembrete 48h/3h, "abriu vaga pra você") por WhatsApp/push
+- [ ] Leitura da súmula por foto com IA de visão
+- [ ] Política de privacidade e termos de uso (LGPD: o app guarda nome, celular e CPF quando usa Asaas)
+- [ ] Rate limit no pedido de código de login
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Estrutura
+
+- `src/lib/domain/` — regras puras + testes (`domain.test.ts`)
+- `src/lib/pelada.ts` — operações (grupos, jogos, lista, pagamentos, créditos, estatísticas)
+- `src/lib/payments.ts` — Pix estático (BR Code) e Asaas
+- `src/app/` — telas (Next.js App Router + Server Actions)
+- `src/db/schema.ts` — tabelas (Drizzle ORM)
