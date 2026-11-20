@@ -33,7 +33,7 @@ export default async function Jogador({ params }: PageProps<"/g/[slug]/jogador/[
             [`${rel.get(userId) ?? 100}%`, "presença"],
           ].map(([v, l]) => (
             <div key={l as string} className="rounded-xl bg-noite p-2">
-              <div className="text-2xl font-black text-laranja">{v}</div>
+              <div className="text-2xl font-black text-lima">{v}</div>
               <div className="text-xs text-white/50">{l}</div>
             </div>
           ))}

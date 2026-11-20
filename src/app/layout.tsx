@@ -5,10 +5,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Eu Tô On! – sua pelada organizada",
   description: "Lista, Pix, times e estatísticas da sua pelada num link só.",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/icon-180.png" },
 };
 
-export const viewport: Viewport = { themeColor: "#0e1630" };
+export const viewport: Viewport = { themeColor: "#0b1530" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-2">
             <Link href="/" aria-label="Início">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Eu Tô On!" className="h-10 w-auto" />
+              <img src="/logo.svg" alt="Eu Tô On!" className="h-11 w-auto" />
             </Link>
           </div>
         </header>

@@ -220,7 +220,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
         )}
         {!finished && me && (
           <details className="mt-3">
-            <summary className="cursor-pointer text-sm font-semibold text-laranja">+ Levar convidado</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-lima">+ Levar convidado</summary>
             <form action={addGuestAction} className="mt-2 flex gap-2">
               {hidden}
               <input name="guestName" className="input" placeholder="Nome do convidado" required />
@@ -304,7 +304,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
         )}
         {admin && (
           <details>
-            <summary className="cursor-pointer font-semibold text-laranja">✍️ Registrar súmula</summary>
+            <summary className="cursor-pointer font-semibold text-lima">✍️ Registrar súmula</summary>
             <div className="mt-3">
               <SumulaForm
                 slug={slug}

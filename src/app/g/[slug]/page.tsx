@@ -85,12 +85,12 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
         {upcoming.length === 0 && <p className="muted">Nenhum jogo marcado.</p>}
         <div className="grid gap-2">
           {upcoming.map((g) => (
-            <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className="card flex items-center justify-between hover:ring-laranja/50">
+            <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className="card flex items-center justify-between hover:ring-lima/50">
               <div>
                 <div className="font-bold">{g.title}</div>
                 <div className="muted">{fmtDate(g.startsAt)} · {g.location}</div>
               </div>
-              <span className="text-laranja">→</span>
+              <span className="text-lima">→</span>
             </Link>
           ))}
         </div>
@@ -142,7 +142,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
         </div>
         <div className="mb-3 flex gap-1">
           {Object.keys(PERIODS).map((k) => (
-            <Link key={k} href={`/g/${slug}?periodo=${k}`} className={`btn-sec btn-sm ${k === period ? "!bg-laranja !text-white" : ""}`}>
+            <Link key={k} href={`/g/${slug}?periodo=${k}`} className={`btn-sec btn-sm ${k === period ? "!bg-lima !text-noite" : ""}`}>
               {k === "mes" ? "mês" : k}
             </Link>
           ))}
@@ -195,7 +195,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
                 <span className="text-sm">{brl(v.raisedCents)} de {brl(v.goalCents)}</span>
               </div>
               <div className="my-2 h-2.5 overflow-hidden rounded-full bg-noite">
-                <div className="h-full bg-laranja" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-lima" style={{ width: `${pct}%` }} />
               </div>
               {v.contributors.length > 0 && (
                 <p className="muted mb-2">{v.contributors.map((c) => `${c.name.split(" ")[0]} ${brl(c.cents)}`).join(" · ")}</p>

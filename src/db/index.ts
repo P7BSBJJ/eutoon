@@ -7,11 +7,12 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 // Desenvolvimento: sem DATABASE_URL usa PGlite (Postgres embutido) em ./.data
 async function create() {
   const migrationsFolder = path.join(process.cwd(), "drizzle");
-  if (process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL; // Neon na Vercel cria um dos dois
+  if (url) {
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const { migrate } = await import("drizzle-orm/postgres-js/migrator");
     const postgres = (await import("postgres")).default;
-    const client = postgres(process.env.DATABASE_URL, { prepare: false });
+    const client = postgres(url, { prepare: false, max: 3 });
     const db = drizzle(client, { schema });
     await migrate(db, { migrationsFolder });
     return db;

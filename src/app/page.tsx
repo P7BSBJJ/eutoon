@@ -11,7 +11,7 @@ export default async function Home() {
       <div className="space-y-6 pt-6">
         <section className="text-center">
           <h1 className="text-4xl font-black italic leading-tight">
-            Sua pelada <span className="text-laranja">organizada</span>
+            Sua pelada <span className="text-lima">organizada</span>
             <br />
             num link só.
           </h1>
@@ -63,7 +63,7 @@ export default async function Home() {
       )}
       <div className="grid gap-3">
         {groups.map(({ group, role }) => (
-          <Link key={group.id} href={`/g/${group.slug}`} className="card flex items-center justify-between hover:ring-laranja/50">
+          <Link key={group.id} href={`/g/${group.slug}`} className="card flex items-center justify-between hover:ring-lima/50">
             <div>
               <div className="font-bold">{group.name}</div>
               <div className="muted">{group.location || "—"}</div>
