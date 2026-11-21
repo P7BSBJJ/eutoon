@@ -74,6 +74,7 @@ export function OnSwitch({ on, label, sub, confirm }: { on: boolean; label: stri
       type="submit"
       disabled={pending}
       aria-pressed={on}
+      aria-busy={pending}
       className="group flex w-full items-center gap-4 text-left"
       onClick={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
