@@ -4,9 +4,45 @@ import { currentUser } from "@/lib/auth";
 import * as P from "@/lib/pelada";
 import { baseUrl, brl, fmtDate, nowMs } from "@/lib/url";
 import { Flash } from "@/components/flash";
-import { CopyButton, Submit } from "@/components/client";
-import { BallIcon, BootIcon, Banknote, CalendarDays, ChevronRight, Crown, History, Megaphone, PiggyBank, Plus, Settings, Target, Trophy, Vote } from "@/components/icons";
-import { confirmPaymentAction, contributeAction, createGameAction, createVaquinhaAction, joinGroupAction } from "../../actions";
+import { CopyButton, OnSwitch, ShareWhatsApp, Submit } from "@/components/client";
+import {
+  BallIcon,
+  Ban,
+  Banknote,
+  BootIcon,
+  CalendarDays,
+  ChevronRight,
+  Crown,
+  History,
+  LeaveIcon,
+  MapPin,
+  Megaphone,
+  MessageCircle,
+  Pin,
+  PinOff,
+  PiggyBank,
+  Plus,
+  Send,
+  Settings,
+  Target,
+  Trash2,
+  Trophy,
+  Vote,
+  Wallet,
+} from "@/components/icons";
+import {
+  confirmPaymentAction,
+  contributeAction,
+  createGameAction,
+  createPostAction,
+  createVaquinhaAction,
+  deletePostAction,
+  joinGameAction,
+  joinGroupAction,
+  leaveGroupAction,
+  payEntryAction,
+  togglePinAction,
+} from "../../actions";
 
 const PERIODS: Record<string, [number, string]> = {
   semana: [7, "da semana"],
@@ -32,7 +68,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
         <p className="muted">{group.location}</p>
         <form action={joinGroupAction}>
           <input type="hidden" name="slug" value={slug} />
-          <Submit className="btn w-full py-3">Tô on! Entrar no grupo</Submit>
+          <Submit className="btn w-full py-3">Tô on! Entrar na pelada</Submit>
         </form>
       </div>
     );
@@ -40,34 +76,83 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
 
   const admin = me.role === "admin";
   const period = typeof sp.periodo === "string" && PERIODS[sp.periodo] ? sp.periodo : "mes";
-  const [games, ranking, vaqs, pending, credit, url] = await Promise.all([
+  const [games, ranking, vaqs, pending, credit, posts, url] = await Promise.all([
     P.listGames(group.id),
     P.rankings(group.id, PERIODS[period][0]),
     P.listVaquinhas(group.id),
     admin ? P.pendingConfirmations(group.id) : Promise.resolve([]),
     P.creditBalance(group.id, user.id),
+    P.listPosts(group.id),
     baseUrl(),
   ]);
   const now = nowMs();
   const upcoming = games.filter((g) => g.startsAt.getTime() >= now - 3 * 36e5).reverse();
   const past = games.filter((g) => g.startsAt.getTime() < now - 3 * 36e5);
+  const next = upcoming.find((g) => !g.canceledAt && g.startsAt.getTime() > now);
+  const nextEntries = next ? await P.gameEntries(next.id) : [];
+  const mine = nextEntries.find((e) => e.userId === user.id && e.status !== "saiu");
+  const nextLine = nextEntries.filter((e) => e.status === "confirmado" && e.position === "linha").length;
   const top = (k: "points" | "goals" | "assists") => [...ranking].sort((a, b) => b[k] - a[k])[0];
+  const groupLink = `${url}/g/${slug}`;
 
   return (
     <div className="space-y-5">
       <Flash sp={sp} />
       <div>
-        <h1 className="text-3xl">{group.name}</h1>
-        <p className="muted">
-          {group.location} · {brl(group.priceCents)}
-          {credit > 0 && <span className="ml-2 tag bg-lima/15 text-lima">seu crédito: {brl(credit)}</span>}
+        <h1 className="text-4xl">{group.name}</h1>
+        <p className="muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {group.location && <span className="inline-flex items-center gap-1"><MapPin size={14} /> {group.location}</span>}
+          <span className="inline-flex items-center gap-1"><Wallet size={14} /> {brl(group.priceCents)}</span>
+          {credit > 0 && <span className="tag bg-lima/15 text-lima">seu crédito: {brl(credit)}</span>}
         </p>
       </div>
+
+      {/* próximo jogo: confirmar aqui mesmo */}
+      {next ? (
+        <section className="card space-y-4 ring-lima/30">
+          <Link href={`/g/${slug}/jogo/${next.id}`} className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-lima">Próximo jogo</div>
+              <div className="font-display text-2xl uppercase">{next.title}</div>
+              <div className="muted flex items-center gap-1">
+                <CalendarDays size={14} /> {fmtDate(next.startsAt)} · {nextLine}/{next.slots} confirmados
+              </div>
+            </div>
+            <ChevronRight size={22} className="mt-6 shrink-0 text-lima" />
+          </Link>
+          {!mine ? (
+            <form action={joinGameAction}>
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="gameId" value={next.id} />
+              <input type="hidden" name="position" value={me.position} />
+              <OnSwitch on={false} label="Tô on!" sub={nextLine >= next.slots ? "Lista cheia: entra na espera" : "Toque para confirmar"} />
+            </form>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link href={`/g/${slug}/jogo/${next.id}`} className="font-display text-xl uppercase text-lima">
+                {mine.status === "espera" ? "Você está na espera" : "Você tá on!"}
+              </Link>
+              {mine.status === "confirmado" && !mine.paid && mine.kind !== "mensalista" && !mine.pendingPaymentId && (
+                <form action={payEntryAction}>
+                  <input type="hidden" name="slug" value={slug} />
+                  <input type="hidden" name="gameId" value={next.id} />
+                  <input type="hidden" name="entryId" value={mine.id} />
+                  <Submit className="btn"><Wallet size={18} /> Pagar {brl(next.priceCents)}</Submit>
+                </form>
+              )}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section className="card text-center">
+          <p className="muted">Nenhum jogo marcado no momento.{admin ? " Marque o próximo abaixo." : " Você será avisado quando marcarem."}</p>
+        </section>
+      )}
 
       {admin && pending.length > 0 && (
         <section className="card ring-amarelo/40">
           <h2 className="h2"><Banknote size={20} /> Confirme os Pix recebidos</h2>
-          <p className="muted mb-3">Eles disseram que pagaram. Confira no seu banco e confirme.</p>
+          <p className="muted mb-3">Eles avisaram que pagaram. Confira no seu banco e confirme.</p>
           {pending.map((p) => (
             <form key={p.id} action={confirmPaymentAction} className="flex items-center justify-between border-t border-white/5 py-2">
               <input type="hidden" name="paymentId" value={p.id} />
@@ -81,14 +166,61 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
         </section>
       )}
 
+      {/* mural */}
+      <section id="mural" className="card space-y-3">
+        <h2 className="h2"><MessageCircle size={20} /> Mural</h2>
+        <form action={createPostAction} className="space-y-2">
+          <input type="hidden" name="slug" value={slug} />
+          <textarea name="body" className="input min-h-20" maxLength={1000} placeholder={admin ? "Recado para a galera (todos são avisados no app)" : "Escreva um recado para a pelada"} required />
+          <div className="flex justify-end">
+            <Submit className="btn btn-sm"><Send size={15} /> Publicar</Submit>
+          </div>
+        </form>
+        {posts.length === 0 && <p className="muted">Nenhum recado ainda.</p>}
+        <ul className="space-y-2">
+          {posts.map((p) => (
+            <li key={p.id} className={`rounded-xl bg-noite p-3 ${p.pinned ? "ring-1 ring-lima/40" : ""}`}>
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs text-white/50">
+                <span className="inline-flex items-center gap-1">
+                  {p.pinned && <Pin size={12} className="text-lima" />}
+                  <b className="text-white/80">{p.author}</b> · {fmtDate(p.createdAt)}
+                </span>
+                <span className="flex gap-1">
+                  {admin && (
+                    <form action={togglePinAction}>
+                      <input type="hidden" name="slug" value={slug} />
+                      <input type="hidden" name="postId" value={p.id} />
+                      <button className="rounded p-1 hover:bg-white/10" aria-label={p.pinned ? "Desafixar" : "Fixar no topo"}>
+                        {p.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                      </button>
+                    </form>
+                  )}
+                  {(admin || p.authorId === user.id) && (
+                    <form action={deletePostAction}>
+                      <input type="hidden" name="slug" value={slug} />
+                      <input type="hidden" name="postId" value={p.id} />
+                      <Submit className="rounded p-1 hover:bg-white/10" confirm="Apagar este recado?"><Trash2 size={14} /></Submit>
+                    </form>
+                  )}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-sm">{p.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section>
-        <h2 className="h2"><CalendarDays size={20} /> Próximos jogos</h2>
+        <h2 className="h2"><CalendarDays size={20} /> Jogos marcados</h2>
         {upcoming.length === 0 && <p className="muted">Nenhum jogo marcado.</p>}
         <div className="grid gap-2">
           {upcoming.map((g) => (
-            <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className="card flex items-center justify-between hover:ring-lima/50">
+            <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className={`card flex items-center justify-between hover:ring-lima/40 ${g.canceledAt ? "opacity-60" : ""}`}>
               <div>
-                <div className="font-bold">{g.title}</div>
+                <div className="font-bold">
+                  {g.title}
+                  {g.canceledAt && <span className="tag ml-2 bg-red-500/20 text-red-200"><Ban size={12} /> cancelado</span>}
+                </div>
                 <div className="muted">{fmtDate(g.startsAt)} · {g.location}</div>
               </div>
               <ChevronRight size={20} className="text-lima" />
@@ -130,7 +262,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
                   <input name="gkSlots" type="number" className="input" defaultValue={group.gkSlots} />
                 </div>
               </div>
-              <p className="muted">Mensalistas entram confirmados automaticamente.</p>
+              <p className="muted">Mensalistas entram confirmados automaticamente e todos da pelada são avisados no app.</p>
               <Submit className="btn w-full">Marcar jogo</Submit>
             </form>
           </details>
@@ -138,9 +270,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
       </section>
 
       <section className="card">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="h2 mb-0"><Trophy size={20} /> Ranking {PERIODS[period][1]}</h2>
-        </div>
+        <h2 className="h2 mb-3"><Trophy size={20} /> Ranking {PERIODS[period][1]}</h2>
         <div className="mb-3 flex gap-1">
           {Object.keys(PERIODS).map((k) => (
             <Link key={k} href={`/g/${slug}?periodo=${k}`} className={`btn-sec btn-sm ${k === period ? "!bg-lima !text-noite" : ""}`}>
@@ -153,21 +283,19 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
         ) : (
           <>
             <div className="mb-3 grid grid-cols-3 gap-2 text-center text-sm">
-              {[
-                [Crown, "Craque", top("points")],
-                [BallIcon, "Artilheiro", top("goals")],
-                [Target, "Garçom", top("assists")],
-              ].map(([Icon, t, r]) => {
-                const row = r as (typeof ranking)[number];
-                const I = Icon as typeof Crown;
-                return (
-                  <div key={t as string} className="rounded-xl bg-noite p-2">
-                    <I size={18} className="mx-auto mb-0.5 text-lima" />
-                    <div className="text-xs text-white/50">{t as string}</div>
-                    <div className="font-bold">{row.name.split(" ")[0]}</div>
-                  </div>
-                );
-              })}
+              {(
+                [
+                  [Crown, "Craque", top("points")],
+                  [BallIcon, "Artilheiro", top("goals")],
+                  [Target, "Garçom", top("assists")],
+                ] as const
+              ).map(([Icon, t, row]) => (
+                <div key={t} className="rounded-xl bg-noite p-2">
+                  <Icon size={18} className="mx-auto mb-0.5 text-lima" />
+                  <div className="text-xs text-white/50">{t}</div>
+                  <div className="font-bold">{row.name.split(" ")[0]}</div>
+                </div>
+              ))}
             </div>
             <ol className="divide-y divide-white/5">
               {ranking.map((r, i) => (
@@ -197,7 +325,7 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
           const pct = Math.min(100, Math.round((v.raisedCents / v.goalCents) * 100));
           return (
             <div key={v.id} className="border-t border-white/5 py-3">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <b>{v.title}</b>
                 <span className="text-sm">{brl(v.raisedCents)} de {brl(v.goalCents)}</span>
               </div>
@@ -210,26 +338,32 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
               <form action={contributeAction} className="flex gap-2">
                 <input type="hidden" name="slug" value={slug} />
                 <input type="hidden" name="vaquinhaId" value={v.id} />
-                <input name="amount" className="input" inputMode="decimal" placeholder="R$ 20,00" required />
+                <input name="amount" className="input" inputMode="decimal" placeholder="Valor, ex.: 20,00" required />
                 <Submit className="btn shrink-0">Contribuir</Submit>
               </form>
             </div>
           );
         })}
         {admin && (
-          <form action={createVaquinhaAction} className="mt-3 flex gap-2 border-t border-white/5 pt-3">
+          <form action={createVaquinhaAction} className="mt-3 space-y-2 border-t border-white/5 pt-3">
             <input type="hidden" name="slug" value={slug} />
-            <input name="title" className="input" placeholder="Ex.: Churrasco de fim de ano" required />
-            <input name="goal" className="input w-28" inputMode="decimal" placeholder="Meta R$" required />
-            <Submit className="btn-sec shrink-0">Criar</Submit>
+            <label className="label">Nova vaquinha</label>
+            <div className="flex gap-2">
+              <input name="title" className="input" placeholder="Ex.: Churrasco de fim de ano" required />
+              <input name="goal" className="input w-28" inputMode="decimal" placeholder="Meta R$" required />
+            </div>
+            <Submit className="btn-sec w-full">Criar vaquinha</Submit>
           </form>
         )}
       </section>
 
       <section className="card space-y-2">
-        <h2 className="h2"><Megaphone size={20} /> Convide a galera</h2>
-        <p className="muted">Mande este link no grupo do WhatsApp. Quem entrar já pode confirmar nos jogos.</p>
-        <CopyButton text={`${url}/g/${slug}`} label="Copiar link do grupo" className="btn-sec w-full" />
+        <h2 className="h2"><Megaphone size={20} /> Chame a galera para o app</h2>
+        <p className="muted">Mande o link uma vez no grupo. Depois, tudo acontece aqui: lista, pagamento, avisos e times.</p>
+        <div className="flex gap-2">
+          <CopyButton text={groupLink} label="Copiar link" className="btn-sec flex-1" />
+          <ShareWhatsApp text={`Entra na pelada ${group.name} no Eu Tô On! Lista, Pix e times pelo app: ${groupLink}`} className="btn-sec flex-1" />
+        </div>
         {admin && (
           <Link href={`/g/${slug}/config`} className="btn-sec w-full">
             <Settings size={18} /> Configurações e jogadores
@@ -243,13 +377,23 @@ export default async function GroupPage({ params, searchParams }: PageProps<"/g/
           <div className="grid gap-2">
             {past.slice(0, 10).map((g) => (
               <Link key={g.id} href={`/g/${slug}/jogo/${g.id}`} className="card flex justify-between py-3 text-sm">
-                <span>{g.title}</span>
+                <span>{g.title}{g.canceledAt ? " (cancelado)" : ""}</span>
                 <span className="text-white/50">{fmtDate(g.startsAt, { day: "2-digit", month: "2-digit" })}</span>
               </Link>
             ))}
           </div>
         </section>
       )}
+
+      <form action={leaveGroupAction} className="pt-4 text-center">
+        <input type="hidden" name="slug" value={slug} />
+        <Submit
+          className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-red-300"
+          confirm="Sair desta pelada? Você sai das listas dos próximos jogos (valem as regras de desistência)."
+        >
+          <LeaveIcon size={15} /> Sair da pelada
+        </Submit>
+      </form>
     </div>
   );
 }

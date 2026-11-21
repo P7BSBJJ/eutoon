@@ -2,6 +2,7 @@ import Link from "next/link";
 import { currentUser } from "@/lib/auth";
 import { myGroups } from "@/lib/pelada";
 import { logoutAction } from "./actions";
+import { Flash } from "@/components/flash";
 import { BallIcon, ChevronRight, PiggyBank, Plus, ShieldBan, Shuffle, Trophy, Wallet } from "@/components/icons";
 
 const FEATURES = [
@@ -12,7 +13,8 @@ const FEATURES = [
   [PiggyBank, "Vaquinhas", "Churrasco, coletes e confraternização com prestação de contas."],
 ] as const;
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const sp = await searchParams;
   const user = await currentUser();
 
   if (!user) {
@@ -51,6 +53,7 @@ export default async function Home() {
   const groups = await myGroups(user.id);
   return (
     <div className="space-y-4">
+      <Flash sp={sp} />
       <div className="flex items-center justify-between">
         <h1 className="text-3xl">E aí, {user.name.split(" ")[0]}!</h1>
         <form action={logoutAction}>

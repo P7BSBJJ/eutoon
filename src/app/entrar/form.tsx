@@ -7,7 +7,7 @@ export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, { step: "phone" });
 
   return (
-    <form action={action} className="card space-y-4">
+    <form action={action} className="card space-y-4" data-nobar>
       <input type="hidden" name="next" value={next} />
       {state.step === "phone" ? (
         <div>

@@ -4,6 +4,13 @@ import type { SVGProps } from "react";
 
 export {
   ArrowLeft,
+  Bell,
+  Ban,
+  Pin,
+  PinOff,
+  Trash2,
+  LogOut as LeaveIcon,
+  Send,
   Banknote,
   CalendarDays,
   Check,
@@ -22,6 +29,7 @@ export {
   MessageCircle,
   MoreHorizontal,
   PenLine,
+  Pencil,
   PiggyBank,
   Plus,
   Settings,

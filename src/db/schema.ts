@@ -79,6 +79,7 @@ export const games = pgTable(
     perTeam: integer("per_team").notNull(),
     deadlineHours: integer("deadline_hours").notNull(),
     teamsJson: text("teams_json"), // último sorteio
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("games_group_idx").on(t.groupId, t.startsAt)],
@@ -169,4 +170,34 @@ export const votes = pgTable(
     votedId: uuid("voted_id").notNull().references(() => users.id),
   },
   (t) => [primaryKey({ columns: [t.gameId, t.voterId] })],
+);
+
+/** Mural de avisos da pelada (substitui os recados do grupo de WhatsApp) */
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").notNull().references(() => users.id),
+    body: text("body").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("posts_group_idx").on(t.groupId, t.createdAt)],
+);
+
+/** Notificações dentro do app */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    link: text("link").notNull().default("/"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
 );

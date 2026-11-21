@@ -3,13 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { parseMoney } from "@/lib/domain/money";
 import { currentUser, logout, requestOtp, verifyOtp } from "@/lib/auth";
 import * as P from "@/lib/pelada";
 import { getDb, schema } from "@/db";
 import { eq } from "drizzle-orm";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
-const cents = (v: string) => Math.round(Number(v.replace(",", ".")) * 100) || 0;
+const cents = parseMoney;
 
 async function me() {
   const u = await currentUser();
@@ -121,6 +122,7 @@ export async function joinGroupAction(f: FormData) {
 }
 
 export async function updateMemberAction(f: FormData) {
+  if (str(f, "remover")) return removeMemberAction(f);
   const u = await me();
   const slug = str(f, "slug");
   await run(`/g/${slug}/config`, async () => {
@@ -276,4 +278,77 @@ export async function saveCpfAction(f: FormData) {
   const db = await getDb();
   await db.update(schema.users).set({ cpf }).where(eq(schema.users.id, u.id));
   redirect(withParam(back, "ok", "CPF salvo"));
+}
+
+// ---------- gestão de jogo ----------
+export async function updateGameAction(f: FormData) {
+  const u = await me();
+  const startsAt = new Date(`${str(f, "startsAt")}:00-03:00`);
+  await run(gamePath(f), async () => {
+    if (isNaN(startsAt.getTime())) throw new P.AppError("Data inválida");
+    await P.updateGame(str(f, "gameId"), u, {
+      title: str(f, "title"),
+      startsAt,
+      location: str(f, "location"),
+      priceCents: cents(str(f, "price")),
+      slots: Math.max(2, Number(str(f, "slots")) || 2),
+      gkSlots: Math.max(0, Number(str(f, "gkSlots")) || 0),
+      deadlineHours: Math.max(0, Number(str(f, "deadlineHours")) || 0),
+    });
+  }, "Jogo atualizado. Quem está na lista foi avisado.");
+}
+
+export async function cancelGameAction(f: FormData) {
+  const u = await me();
+  await run(gamePath(f), () => P.cancelGame(str(f, "gameId"), u), "Jogo cancelado. Quem pagou recebeu crédito.");
+}
+
+// ---------- gestão de pessoas e pelada ----------
+export async function removeMemberAction(f: FormData) {
+  const u = await me();
+  const slug = str(f, "slug");
+  await run(`/g/${slug}/config`, async () => {
+    const g = await P.getGroupBySlug(slug);
+    await P.removeMember(g!.id, u, str(f, "userId"));
+  }, "Jogador removido da pelada.");
+}
+
+export async function leaveGroupAction(f: FormData) {
+  const u = await me();
+  const slug = str(f, "slug");
+  await runNoRedirect(`/g/${slug}`, async () => {
+    const g = await P.getGroupBySlug(slug);
+    await P.removeMember(g!.id, u, u.id);
+  });
+  redirect(`/?ok=${encodeURIComponent("Você saiu da pelada.")}`);
+}
+
+export async function deleteGroupAction(f: FormData) {
+  const u = await me();
+  const slug = str(f, "slug");
+  await runNoRedirect(`/g/${slug}/config`, async () => {
+    const g = await P.getGroupBySlug(slug);
+    await P.deleteGroup(g!.id, u, str(f, "confirmName"));
+  });
+  redirect(`/?ok=${encodeURIComponent("Pelada excluída.")}`);
+}
+
+// ---------- mural ----------
+export async function createPostAction(f: FormData) {
+  const u = await me();
+  const slug = str(f, "slug");
+  await run(`/g/${slug}#mural`, async () => {
+    const g = await P.getGroupBySlug(slug);
+    await P.createPost(g!.id, u, str(f, "body"));
+  }, "Recado publicado. A galera foi avisada.");
+}
+
+export async function deletePostAction(f: FormData) {
+  const u = await me();
+  await run(`/g/${str(f, "slug")}#mural`, () => P.deletePost(str(f, "postId"), u));
+}
+
+export async function togglePinAction(f: FormData) {
+  const u = await me();
+  await run(`/g/${str(f, "slug")}#mural`, () => P.togglePin(str(f, "postId"), u));
 }

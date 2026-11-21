@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema as t } from "@/db";
 import { decideLeave, hasRoom, reliability } from "@/lib/domain/rules";
 import { drawTeams, type DrawMode, type DrawResult } from "@/lib/domain/teams";
@@ -10,6 +10,48 @@ import { AppError } from "@/lib/errors";
 export { AppError };
 
 type User = typeof t.users.$inferSelect;
+
+// ---------------- notificações ----------------
+
+/** cria notificações dentro do app (depois: também push no celular) */
+export async function notify(
+  userIds: (string | null | undefined)[],
+  n: { groupId?: string; title: string; body?: string; link: string },
+  exceptId?: string,
+) {
+  const ids = [...new Set(userIds.filter((x): x is string => Boolean(x) && x !== exceptId))];
+  if (!ids.length) return;
+  const db = await getDb();
+  await db.insert(t.notifications).values(ids.map((userId) => ({ userId, groupId: n.groupId, title: n.title, body: n.body ?? "", link: n.link })));
+}
+
+async function memberIds(groupId: string) {
+  const db = await getDb();
+  return (await db.query.members.findMany({ where: eq(t.members.groupId, groupId) })).map((m) => m.userId);
+}
+async function adminIds(groupId: string) {
+  const db = await getDb();
+  return (await db.query.members.findMany({ where: and(eq(t.members.groupId, groupId), eq(t.members.role, "admin")) })).map((m) => m.userId);
+}
+const gameLink = (slug: string, gameId: string) => `/g/${slug}/jogo/${gameId}`;
+const when = (d: Date) => d.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+export async function listNotifications(userId: string) {
+  const db = await getDb();
+  return db.query.notifications.findMany({ where: eq(t.notifications.userId, userId), orderBy: desc(t.notifications.createdAt), limit: 50 });
+}
+export async function unreadCount(userId: string) {
+  const db = await getDb();
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(t.notifications)
+    .where(and(eq(t.notifications.userId, userId), isNull(t.notifications.readAt)));
+  return Number(r?.n ?? 0);
+}
+export async function markAllRead(userId: string) {
+  const db = await getDb();
+  await db.update(t.notifications).set({ readAt: new Date() }).where(and(eq(t.notifications.userId, userId), isNull(t.notifications.readAt)));
+}
 
 // ---------------- grupos ----------------
 
@@ -122,6 +164,88 @@ export async function updateMember(
     .where(and(eq(t.members.groupId, groupId), eq(t.members.userId, userId)));
 }
 
+/** remove um jogador da pelada (sai das listas dos próximos jogos; histórico fica) */
+export async function removeMember(groupId: string, actor: User, userId: string) {
+  const self = actor.id === userId;
+  if (!self) await assertAdmin(groupId, actor.id);
+  const db = await getDb();
+  const m = await getMembership(groupId, userId);
+  if (!m) return;
+  if (m.role === "admin") {
+    const admins = await adminIds(groupId);
+    if (admins.length <= 1) throw new AppError("A pelada precisa de pelo menos um organizador. Promova outra pessoa antes.");
+  }
+  const future = await db
+    .select({ id: t.entries.id })
+    .from(t.entries)
+    .innerJoin(t.games, eq(t.games.id, t.entries.gameId))
+    .where(and(eq(t.games.groupId, groupId), eq(t.entries.userId, userId), gte(t.games.startsAt, new Date()), inArray(t.entries.status, ["confirmado", "espera"])));
+  for (const e of future) {
+    try {
+      await leaveGame(e.id, actor);
+    } catch {
+      /* jogo cancelado etc. */
+    }
+  }
+  await db.delete(t.members).where(and(eq(t.members.groupId, groupId), eq(t.members.userId, userId)));
+}
+
+/** exclui a pelada inteira (jogos, listas, pagamentos, vaquinhas, mural) */
+export async function deleteGroup(groupId: string, actor: User, confirmName: string) {
+  await assertAdmin(groupId, actor.id);
+  const db = await getDb();
+  const g = await db.query.groups.findFirst({ where: eq(t.groups.id, groupId) });
+  if (!g) return;
+  if (confirmName.trim().toLowerCase() !== g.name.trim().toLowerCase())
+    throw new AppError("Para excluir, digite o nome da pelada exatamente como está.");
+  await db.delete(t.groups).where(eq(t.groups.id, groupId));
+}
+
+// ---------------- mural ----------------
+
+export async function listPosts(groupId: string) {
+  const db = await getDb();
+  return db
+    .select({ id: t.posts.id, body: t.posts.body, pinned: t.posts.pinned, createdAt: t.posts.createdAt, authorId: t.posts.authorId, author: t.users.name })
+    .from(t.posts)
+    .innerJoin(t.users, eq(t.users.id, t.posts.authorId))
+    .where(eq(t.posts.groupId, groupId))
+    .orderBy(desc(t.posts.pinned), desc(t.posts.createdAt))
+    .limit(30);
+}
+
+export async function createPost(groupId: string, actor: User, body: string) {
+  const text = body.trim();
+  if (text.length < 2) throw new AppError("Escreva o recado.");
+  if (text.length > 1000) throw new AppError("Recado muito longo (máximo 1000 caracteres).");
+  if (!(await getMembership(groupId, actor.id))) throw new AppError("Entre na pelada primeiro.");
+  const db = await getDb();
+  await db.insert(t.posts).values({ groupId, authorId: actor.id, body: text });
+  const group = (await db.query.groups.findFirst({ where: eq(t.groups.id, groupId) }))!;
+  await notify(await memberIds(groupId), {
+    groupId,
+    title: `${actor.name.split(" ")[0]} no mural de ${group.name}`,
+    body: text.length > 90 ? text.slice(0, 90) + "…" : text,
+    link: `/g/${group.slug}#mural`,
+  }, actor.id);
+}
+
+export async function deletePost(postId: string, actor: User) {
+  const db = await getDb();
+  const p = await db.query.posts.findFirst({ where: eq(t.posts.id, postId) });
+  if (!p) return;
+  if (p.authorId !== actor.id) await assertAdmin(p.groupId, actor.id);
+  await db.delete(t.posts).where(eq(t.posts.id, postId));
+}
+
+export async function togglePin(postId: string, actor: User) {
+  const db = await getDb();
+  const p = await db.query.posts.findFirst({ where: eq(t.posts.id, postId) });
+  if (!p) return;
+  await assertAdmin(p.groupId, actor.id);
+  await db.update(t.posts).set({ pinned: !p.pinned }).where(eq(t.posts.id, postId));
+}
+
 // ---------------- créditos ----------------
 
 export async function creditBalance(groupId: string, userId: string) {
@@ -160,7 +284,78 @@ export async function createGame(
       paid: true,
     });
   }
+  const group = (await db.query.groups.findFirst({ where: eq(t.groups.id, groupId) }))!;
+  await notify(await memberIds(groupId), {
+    groupId,
+    title: `Jogo marcado: ${g.title}`,
+    body: `${when(g.startsAt)} · ${g.location}. Toque para confirmar.`,
+    link: gameLink(group.slug, g.id),
+  }, actor.id);
   return g;
+}
+
+export async function updateGame(
+  gameId: string,
+  actor: User,
+  i: { title: string; startsAt: Date; location: string; priceCents: number; slots: number; gkSlots: number; deadlineHours: number },
+) {
+  const g = await getGame(gameId);
+  if (!g) throw new AppError("Jogo não encontrado.");
+  await assertAdmin(g.group.id, actor.id);
+  if (g.game.canceledAt) throw new AppError("Esse jogo foi cancelado.");
+  const db = await getDb();
+  await db.update(t.games).set(i).where(eq(t.games.id, gameId));
+  // se aumentou as vagas, sobe gente da espera
+  for (const pos of ["linha", "goleiro"] as const) {
+    let c = await counts(gameId);
+    while (hasRoom(c, { slots: i.slots, gkSlots: i.gkSlots }, pos)) {
+      const next = await db.query.entries.findFirst({
+        where: and(eq(t.entries.gameId, gameId), eq(t.entries.status, "espera"), eq(t.entries.position, pos)),
+        orderBy: asc(t.entries.joinedAt),
+      });
+      if (!next) break;
+      await db.update(t.entries).set({ status: "confirmado", joinedAt: new Date() }).where(eq(t.entries.id, next.id));
+      await notify([next.userId ?? next.invitedBy], {
+        groupId: g.group.id,
+        title: "Abriu vaga pra você!",
+        body: `Você saiu da espera e está na lista de ${i.title}.`,
+        link: gameLink(g.group.slug, gameId),
+      });
+      c = await counts(gameId);
+    }
+  }
+  const changed = g.game.startsAt.getTime() !== i.startsAt.getTime() || g.game.location !== i.location;
+  if (changed) {
+    const people = (await gameEntries(gameId)).filter((e) => e.status !== "saiu").map((e) => e.userId ?? e.invitedBy);
+    await notify(people, { groupId: g.group.id, title: `Jogo alterado: ${i.title}`, body: `Agora: ${when(i.startsAt)} · ${i.location}.`, link: gameLink(g.group.slug, gameId) }, actor.id);
+  }
+}
+
+/** cancela o jogo: quem pagou recebe crédito; todo mundo é avisado */
+export async function cancelGame(gameId: string, actor: User) {
+  const g = await getGame(gameId);
+  if (!g) throw new AppError("Jogo não encontrado.");
+  await assertAdmin(g.group.id, actor.id);
+  if (g.game.canceledAt) return;
+  const db = await getDb();
+  await db.update(t.games).set({ canceledAt: new Date() }).where(eq(t.games.id, gameId));
+  const list = await db.query.entries.findMany({ where: and(eq(t.entries.gameId, gameId), inArray(t.entries.status, ["confirmado", "espera"])) });
+  for (const e of list) {
+    const who = e.userId ?? e.invitedBy;
+    if (e.paid && e.kind !== "mensalista" && who)
+      await db.insert(t.credits).values({ groupId: g.group.id, userId: who, amountCents: g.game.priceCents, reason: `Jogo cancelado – ${g.game.title}`, entryId: e.id });
+  }
+  if (list.length)
+    await db
+      .update(t.payments)
+      .set({ status: "cancelado" })
+      .where(and(inArray(t.payments.entryId, list.map((e) => e.id)), inArray(t.payments.status, ["aguardando", "informado"])));
+  await notify(list.map((e) => e.userId ?? e.invitedBy), {
+    groupId: g.group.id,
+    title: `Jogo cancelado: ${g.game.title}`,
+    body: "Quem já tinha pago recebeu o valor como crédito na pelada.",
+    link: gameLink(g.group.slug, gameId),
+  }, actor.id);
 }
 
 export async function listGames(groupId: string) {
@@ -240,6 +435,7 @@ export async function joinGame(gameId: string, user: User, position?: "linha" | 
   const db = await getDb();
   const g = await getGame(gameId);
   if (!g) throw new AppError("Jogo não encontrado.");
+  if (g.game.canceledAt) throw new AppError("Esse jogo foi cancelado.");
   if (g.game.startsAt.getTime() < Date.now()) throw new AppError("Esse jogo já aconteceu.");
   const member = (await getMembership(g.group.id, user.id)) ?? (await joinGroup(g.group.id, user.id))!;
   const active = await db.query.entries.findFirst({
@@ -267,6 +463,8 @@ export async function addGuest(gameId: string, inviter: User, name: string, posi
   if (clean.length < 2) throw new AppError("Nome do convidado muito curto.");
   const g = await getGame(gameId);
   if (!g) throw new AppError("Jogo não encontrado.");
+  if (g.game.canceledAt) throw new AppError("Esse jogo foi cancelado.");
+  if (g.game.startsAt.getTime() < Date.now()) throw new AppError("Esse jogo já aconteceu.");
   if (!(await getMembership(g.group.id, inviter.id))) throw new AppError("Entre no grupo primeiro.");
   const db = await getDb();
   const room = hasRoom(await counts(gameId), g.game, position);
@@ -289,6 +487,8 @@ export async function leaveGame(entryId: string, actor: User, now = new Date()) 
   if (!entry || entry.status === "saiu") throw new AppError("Inscrição não encontrada.");
   const g = (await getGame(entry.gameId))!;
   if (!(await canActOnEntry(entry, g.group.id, actor.id))) throw new AppError("Sem permissão.");
+  if (g.game.canceledAt) throw new AppError("Esse jogo foi cancelado.");
+  if (g.game.startsAt.getTime() < now.getTime()) throw new AppError("Esse jogo já aconteceu; a lista não pode mais ser alterada.");
 
   // quem está na espera só sai, sem regra de prazo
   if (entry.status === "espera") {
@@ -335,7 +535,12 @@ export async function leaveGame(entryId: string, actor: User, now = new Date()) 
       })
       .where(eq(t.entries.id, next.id));
     promoted = next.id;
-    // TODO notificação: avisar o promovido por WhatsApp/push
+    await notify([next.userId ?? next.invitedBy], {
+      groupId: g.group.id,
+      title: "Abriu vaga pra você!",
+      body: `Você saiu da espera e está na lista de ${g.game.title}. Pague para garantir a vaga.`,
+      link: gameLink(g.group.slug, g.game.id),
+    });
   }
   return { outcome: d.outcome, promoted };
 }
@@ -375,6 +580,11 @@ export async function payEntry(entryId: string, actor: User) {
   if (entry.paid) return { kind: "ja_pago" as const };
   const g = (await getGame(entry.gameId))!;
   if (!(await canActOnEntry(entry, g.group.id, actor.id))) throw new AppError("Sem permissão.");
+  if (g.game.canceledAt) throw new AppError("Esse jogo foi cancelado.");
+  if (g.game.priceCents <= 0) {
+    await onEntryPaid(entryId, "manual");
+    return { kind: "ja_pago" as const };
+  }
 
   const payerId = actor.id;
   const balance = await creditBalance(g.group.id, payerId);
@@ -432,8 +642,15 @@ export async function informPaid(paymentId: string, actor: User) {
   const db = await getDb();
   const p = await db.query.payments.findFirst({ where: eq(t.payments.id, paymentId) });
   if (!p || p.userId !== actor.id) throw new AppError("Pagamento não encontrado.");
-  if (p.status === "aguardando")
-    await db.update(t.payments).set({ status: "informado" }).where(eq(t.payments.id, paymentId));
+  if (p.status !== "aguardando") return;
+  await db.update(t.payments).set({ status: "informado" }).where(eq(t.payments.id, paymentId));
+  const group = (await db.query.groups.findFirst({ where: eq(t.groups.id, p.groupId) }))!;
+  await notify(await adminIds(p.groupId), {
+    groupId: p.groupId,
+    title: `${actor.name.split(" ")[0]} avisou que pagou`,
+    body: `${(p.amountCents / 100).toFixed(2).replace(".", ",")} reais. Confira no seu banco e confirme no app.`,
+    link: `/g/${group.slug}`,
+  }, actor.id);
 }
 
 /** organizador confirma (Pix estático) ou webhook confirma (Asaas) */
@@ -443,8 +660,16 @@ export async function confirmPayment(paymentId: string, actor: User | "webhook")
   if (!p) throw new AppError("Pagamento não encontrado.");
   if (actor !== "webhook") await assertAdmin(p.groupId, actor.id);
   if (p.status === "pago") return;
+  if (p.status === "cancelado") throw new AppError("Esse pagamento foi cancelado (o jogo foi cancelado).");
   await db.update(t.payments).set({ status: "pago", paidAt: new Date() }).where(eq(t.payments.id, paymentId));
   if (p.entryId) await onEntryPaid(p.entryId, "pix");
+  const info = await getPayment(paymentId);
+  await notify([p.userId], {
+    groupId: p.groupId,
+    title: "Pagamento confirmado",
+    body: `Recebemos seus ${(p.amountCents / 100).toFixed(2).replace(".", ",")} reais.`,
+    link: info?.backTo ?? "/",
+  });
 }
 
 export async function markPaidManually(entryId: string, actor: User) {
@@ -493,6 +718,12 @@ export async function drawAndSave(gameId: string, actor: User, mode: DrawMode) {
   );
   const db = await getDb();
   await db.update(t.games).set({ teamsJson: JSON.stringify({ mode, ...r }) }).where(eq(t.games.id, gameId));
+  await notify(list.map((e) => e.userId), {
+    groupId: g.group.id,
+    title: `Times sorteados: ${g.game.title}`,
+    body: "Veja em qual time você caiu.",
+    link: gameLink(g.group.slug, gameId) + "#times",
+  }, actor.id);
   return r;
 }
 
@@ -512,8 +743,13 @@ export async function saveStats(gameId: string, actor: User, rows: { userId: str
   if (!g) throw new AppError("Jogo não encontrado.");
   await assertAdmin(g.group.id, actor.id);
   const db = await getDb();
-  for (const r of rows) {
-    if (!r.goals && !r.assists) continue;
+  for (const raw of rows) {
+    const r = { userId: raw.userId, goals: Math.max(0, Math.round(raw.goals) || 0), assists: Math.max(0, Math.round(raw.assists) || 0) };
+    if (!r.goals && !r.assists) {
+      // zerou: apaga o registro (corrige anotação errada)
+      await db.delete(t.stats).where(and(eq(t.stats.gameId, gameId), eq(t.stats.userId, r.userId)));
+      continue;
+    }
     await db
       .insert(t.stats)
       .values({ gameId, userId: r.userId, goals: r.goals, assists: r.assists })

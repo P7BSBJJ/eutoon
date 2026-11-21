@@ -4,6 +4,7 @@ import { drawTeams, teamStrength } from "./teams";
 import { formatList } from "./whatsapp";
 import { crc16, staticPix } from "./pix";
 import { parseSumula, matchPlayer, points } from "./sumula";
+import { parseMoney } from "./money";
 
 describe("desistência", () => {
   const base = { deadlineHours: 24, paid: true, kind: "diarista" as const };
@@ -108,4 +109,17 @@ describe("súmula", () => {
     expect(matchPlayer("Fulano", players)).toBeNull();
   });
   it("pontos", () => expect(points(2, 1)).toBe(5));
+});
+
+describe("valores digitados", () => {
+  it("entende os formatos comuns", () => {
+    expect(parseMoney("R$ 20,00")).toBe(2000);
+    expect(parseMoney("20")).toBe(2000);
+    expect(parseMoney("20,5")).toBe(2050);
+    expect(parseMoney("20.50")).toBe(2050);
+    expect(parseMoney("1.200")).toBe(120000);
+    expect(parseMoney("R$ 1.234,56")).toBe(123456);
+    expect(parseMoney("")).toBe(0);
+    expect(parseMoney("abc")).toBe(0);
+  });
 });

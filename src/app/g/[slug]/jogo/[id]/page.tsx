@@ -10,6 +10,7 @@ import { Flash } from "@/components/flash";
 import { CopyButton, OnSwitch, RowMenu, ShareWhatsApp, Submit } from "@/components/client";
 import {
   ArrowLeft,
+  Ban,
   BallIcon,
   BootIcon,
   CalendarDays,
@@ -21,6 +22,7 @@ import {
   MapPin,
   MessageCircle,
   PenLine,
+  Pencil,
   Shuffle,
   TriangleAlert,
   UserPlus,
@@ -31,6 +33,7 @@ import {
 } from "@/components/icons";
 import {
   addGuestAction,
+  cancelGameAction,
   checkinAction,
   confirmPaymentAction,
   drawAction,
@@ -38,6 +41,7 @@ import {
   leaveGameAction,
   markPaidAction,
   payEntryAction,
+  updateGameAction,
   voteAction,
 } from "@/app/actions";
 import { SumulaForm } from "./sumula-form";
@@ -69,7 +73,8 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
 
   const hoursToGame = (game.startsAt.getTime() - nowMs()) / 36e5;
   const inDeadline = isWithinDeadline(hoursToGame, game.deadlineHours);
-  const finished = hoursToGame < 0;
+  const canceled = Boolean(game.canceledAt);
+  const finished = hoursToGame < 0 || canceled;
   const link = `${url}/g/${slug}/jogo/${id}`;
   const listText = formatList({ ...game, link }, confirmed, wait);
   const teams = P.parseTeams(game.teamsJson);
@@ -171,6 +176,69 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
           <p className="flex items-center gap-2"><Wallet size={17} className="text-lima" /> {brl(game.priceCents)}</p>
         </div>
       </div>
+
+      {canceled && (
+        <div className="flex items-start gap-2 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-200">
+          <Ban size={18} className="shrink-0" />
+          <span>Jogo cancelado pelo organizador. Quem já tinha pago recebeu o valor como crédito na pelada.</span>
+        </div>
+      )}
+
+      {admin && !canceled && hoursToGame > 0 && (
+        <details className="card">
+          <summary className="flex cursor-pointer items-center gap-2 font-bold"><Pencil size={16} className="text-lima" /> Editar ou cancelar jogo</summary>
+          <form action={updateGameAction} className="mt-3 space-y-3">
+            {hidden}
+            <div>
+              <label className="label">Título</label>
+              <input name="title" className="input" defaultValue={game.title} required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="label">Dia e hora (Brasília)</label>
+                <input
+                  name="startsAt"
+                  type="datetime-local"
+                  className="input"
+                  required
+                  defaultValue={new Date(game.startsAt.getTime() - 3 * 36e5).toISOString().slice(0, 16)}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Local</label>
+                <input name="location" className="input" defaultValue={game.location} />
+              </div>
+              <div>
+                <label className="label">Valor (R$)</label>
+                <input name="price" className="input" inputMode="decimal" defaultValue={(game.priceCents / 100).toFixed(2).replace(".", ",")} />
+              </div>
+              <div>
+                <label className="label">Prazo desistência (h)</label>
+                <input name="deadlineHours" type="number" className="input" defaultValue={game.deadlineHours} />
+              </div>
+              <div>
+                <label className="label">Vagas linha</label>
+                <input name="slots" type="number" className="input" defaultValue={game.slots} />
+              </div>
+              <div>
+                <label className="label">Vagas goleiro</label>
+                <input name="gkSlots" type="number" className="input" defaultValue={game.gkSlots} />
+              </div>
+            </div>
+            <p className="muted">Se mudar dia, hora ou local, quem está na lista é avisado. Se aumentar as vagas, a lista de espera sobe sozinha.</p>
+            <Submit className="btn w-full">Salvar alterações</Submit>
+          </form>
+          <form action={cancelGameAction} className="mt-3 border-t border-white/5 pt-3">
+            {hidden}
+            <Submit
+              className="btn-sec w-full !text-red-300"
+              confirm="Cancelar este jogo? Todos serão avisados e quem já pagou recebe o valor como crédito na pelada."
+            >
+              <Ban size={16} /> Cancelar jogo
+            </Submit>
+          </form>
+        </details>
+      )}
 
       {!finished && (
         <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${inDeadline ? "bg-lima/10 text-lima" : "bg-amarelo/10 text-amarelo"}`}>
@@ -276,14 +344,26 @@ export default async function GamePage({ params, searchParams }: PageProps<"/g/[
       </section>
 
       {/* whatsapp */}
-      <section className="card space-y-3">
-        <h2 className="h2"><MessageCircle size={20} /> Lista para o WhatsApp</h2>
-        <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-noite p-3 text-xs">{listText}</pre>
-        <div className="flex gap-2">
-          <CopyButton text={listText} label="Copiar lista" className="btn flex-1" />
-          <ShareWhatsApp text={listText} className="btn-sec flex-1" />
-        </div>
-      </section>
+      {!finished && (
+        <section className="card space-y-3">
+          <h2 className="h2"><MessageCircle size={20} /> Chamar a galera</h2>
+          <p className="muted">Mande o link do jogo: quem abrir confirma e paga pelo app.</p>
+          <div className="flex gap-2">
+            <CopyButton text={link} label="Copiar link" className="btn-sec flex-1" />
+            <ShareWhatsApp
+              text={`${game.title} – ${fmtDate(game.startsAt)}. ${line.length}/${game.slots} confirmados. Confirma pelo app: ${link}`}
+              className="btn-sec flex-1"
+            />
+          </div>
+          {admin && (
+            <details>
+              <summary className="cursor-pointer text-sm text-white/60">Lista completa no formato do grupo</summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-noite p-3 text-xs">{listText}</pre>
+              <CopyButton text={listText} label="Copiar lista" className="btn-sec btn-sm mt-2" />
+            </details>
+          )}
+        </section>
+      )}
 
       {/* times */}
       <section id="times" className="card space-y-3">

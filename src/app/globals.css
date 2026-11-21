@@ -42,3 +42,10 @@ body {
   .muted { @apply text-sm text-white/55; }
   .back { @apply inline-flex items-center gap-1 text-sm text-white/50 hover:text-white; }
 }
+
+@keyframes barra {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+/* enquanto uma ação está sendo enviada, o aviso anterior não confunde */
+html[data-busy] [role="status"] { display: none; }

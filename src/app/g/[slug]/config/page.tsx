@@ -5,8 +5,8 @@ import * as P from "@/lib/pelada";
 import { Flash } from "@/components/flash";
 import { GroupFields } from "@/components/group-fields";
 import { Submit } from "@/components/client";
-import { updateGroupAction, updateMemberAction } from "@/app/actions";
-import { ArrowLeft, Settings, Users } from "@/components/icons";
+import { deleteGroupAction, updateGroupAction, updateMemberAction } from "@/app/actions";
+import { ArrowLeft, Settings, Trash2, TriangleAlert, Users } from "@/components/icons";
 
 export default async function Config({ params, searchParams }: PageProps<"/g/[slug]/config">) {
   const { slug } = await params;
@@ -55,7 +55,19 @@ export default async function Config({ params, searchParams }: PageProps<"/g/[sl
                 </select>
                 {m.userId === user.id && <input type="hidden" name="role" value="admin" />}
               </div>
-              <Submit className="btn-sec btn-sm mt-2">Salvar</Submit>
+              <div className="mt-2 flex items-center justify-between">
+                <Submit className="btn-sec btn-sm">Salvar</Submit>
+                {m.userId !== user.id && (
+                  <Submit
+                    className="inline-flex items-center gap-1 text-xs text-white/40 hover:text-red-300"
+                    confirm={`Remover ${m.name} da pelada? Ele sai das listas dos próximos jogos; o histórico de gols fica.`}
+                    name="remover"
+                    value="1"
+                  >
+                    <Trash2 size={13} /> remover
+                  </Submit>
+                )}
+              </div>
             </form>
           ))}
         </div>
@@ -67,6 +79,19 @@ export default async function Config({ params, searchParams }: PageProps<"/g/[sl
           <input type="hidden" name="slug" value={slug} />
           <GroupFields g={group} />
           <Submit className="btn w-full">Salvar configurações</Submit>
+        </form>
+      </section>
+
+      <section className="card space-y-3 ring-red-500/30">
+        <h2 className="h2 !text-red-200"><TriangleAlert size={20} className="!text-red-300" /> Excluir pelada</h2>
+        <p className="muted">Apaga jogos, listas, pagamentos registrados, vaquinhas, mural e ranking desta pelada. Não dá para desfazer.</p>
+        <form action={deleteGroupAction} className="space-y-2">
+          <input type="hidden" name="slug" value={slug} />
+          <label className="label" htmlFor="confirmName">Digite o nome da pelada para confirmar: {group.name}</label>
+          <input id="confirmName" name="confirmName" className="input" autoComplete="off" required />
+          <Submit className="btn-sec w-full !text-red-300" confirm="Tem certeza? Isso apaga a pelada inteira.">
+            <Trash2 size={16} /> Excluir pelada
+          </Submit>
         </form>
       </section>
     </div>
